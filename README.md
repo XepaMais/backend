@@ -47,9 +47,10 @@ Este repositório contém o **back-end** do Xepa+. A API foi desenvolvida em **J
 - Login por email e senha
 - Hash de senha antes de persistir no banco
 - CORS configurado para permitir chamadas do front-end local em `http://localhost:5173`
+- Financeiro do feirante: lucros (rendas), despesas, saques via Pix (simulados), resumo e planilha CSV, gravados em `tb_renda`, `tb_despesa` e `tb_saque`
 - Entidades JPA que representam contas, consumidores, feirantes, produtos, feiras, xepas, pedidos e outras tabelas do domínio
 
-> A existência de uma entidade JPA não significa que já exista um endpoint para ela. Por enquanto, os endpoints REST implementados são os de cadastro e login listados abaixo.
+> A existência de uma entidade JPA não significa que já exista um endpoint para ela. Por enquanto, os endpoints REST implementados são os de cadastro, login e financeiro listados abaixo.
 
 ## Endpoints de autenticação
 
@@ -58,6 +59,32 @@ Este repositório contém o **back-end** do Xepa+. A API foi desenvolvida em **J
 | `POST` | `/api/auth/cadastro-consumidor` | Cria uma conta de consumidor |
 | `POST` | `/api/auth/cadastro-feirante` | Cria uma conta de feirante |
 | `POST` | `/api/auth/login` | Confere email e senha e informa o tipo da conta |
+
+## Endpoints do financeiro
+
+`{idConta}` é o `id` devolvido pelo login de um feirante. Datas no formato `AAAA-MM-DD`.
+
+| Método | Caminho | Descrição |
+| --- | --- | --- |
+| `GET` | `/api/financeiro/categorias` | Origens de renda e categorias de despesa aceitas |
+| `GET` | `/api/financeiro/{idConta}/rendas?inicio=&fim=` | Lista os lucros (filtro de datas opcional) |
+| `POST` | `/api/financeiro/{idConta}/rendas` | Cria um lucro: `{ "origem", "descricao", "valor", "data" }` |
+| `PUT` | `/api/financeiro/{idConta}/rendas/{id}` | Edita um lucro |
+| `DELETE` | `/api/financeiro/{idConta}/rendas/{id}` | Exclui um lucro |
+| `GET` | `/api/financeiro/{idConta}/despesas?inicio=&fim=` | Lista as despesas |
+| `POST` | `/api/financeiro/{idConta}/despesas` | Cria uma despesa: `{ "categoria", "descricao", "quantidade", "valorUnitario", "data" }` |
+| `PUT` | `/api/financeiro/{idConta}/despesas/{id}` | Edita uma despesa |
+| `DELETE` | `/api/financeiro/{idConta}/despesas/{id}` | Exclui uma despesa |
+| `GET` | `/api/financeiro/{idConta}/saldo` | Saldo para saque: vendas "Venda de xepa pelo Xepa+" menos saques não recusados |
+| `GET` | `/api/financeiro/{idConta}/saques` | Histórico de saques |
+| `POST` | `/api/financeiro/{idConta}/saques` | Solicita saque: `{ "valor", "tipoChave", "chave" }` (`cpf`, `cnpj`, `email`, `celular`, `aleatoria`) |
+| `GET` | `/api/financeiro/{idConta}/resumo` | Rendas, despesas e lucro de hoje, da semana (seg. a dom.) e do mês |
+| `GET` | `/api/financeiro/{idConta}/historico?inicio=&fim=&tipo=&categoria=&busca=` | Lucros e despesas juntos, com totais (`tipo`: `todos`, `lucro` ou `gasto`) |
+| `GET` | `/api/financeiro/{idConta}/planilha?...` | Mesmo filtro do histórico, em CSV para Excel (`;`, vírgula decimal) |
+
+O saque confere o saldo no servidor com a linha do feirante travada, então dois saques ao mesmo tempo não passam do disponível. Nenhum dinheiro é transferido: o saque fica com status `SOLICITADO`. Rendas e despesas ligadas a um pedido (`id_pedido`) não podem ser editadas nem excluídas.
+
+> Ainda não há token de sessão: qualquer pessoa que saiba o `idConta` consegue chamar esses endpoints. Antes de usar com dinheiro real, é preciso autenticação (ex.: JWT) e conferir que a conta do token é a do caminho.
 
 O cadastro recebe JSON. Exemplo de consumidor:
 
@@ -116,6 +143,7 @@ $env:DB_PASSWORD = "SUA_SENHA"
 src/main/java/br/com/xepamais/api/
 ├── auth/                 # cadastro, login, DTOs e hash de senha
 ├── config/               # configurações da aplicação, incluindo CORS
+├── financeiro/           # lucros, despesas, saques, resumo e planilha do feirante
 └── database/
     ├── model/            # entidades JPA mapeadas para as tabelas
     └── repository/       # repositórios Spring Data JPA
@@ -123,4 +151,4 @@ src/main/java/br/com/xepamais/api/
 
 ## Estado da integração
 
-O front-end já envia cadastro e login de consumidor e feirante para a API. A persistência de produtos, feiras, xepas, carrinho, pedidos, conversas e dados financeiros ainda precisa ser implementada por endpoints e conectada às telas correspondentes.
+O front-end já envia cadastro e login de consumidor e feirante para a API. O financeiro do feirante (lucros, despesas, saques e planilhas) já usa a API quando há um feirante logado; sem login, as telas continuam no modo demonstração. A persistência de produtos, feiras, xepas, carrinho, pedidos e conversas ainda precisa ser implementada por endpoints e conectada às telas correspondentes.

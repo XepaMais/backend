@@ -2,6 +2,11 @@ server:
   port: ${SERVER_PORT:8080}
 
 spring:
+  web:
+    error:
+      # Devolve o motivo dos erros (ex.: "Email ou senha inválidos.") no campo "message",
+      # que o front-end mostra ao usuário. Sem isso o Spring esconde o texto.
+      include-message: always
   datasource:
     url: ${DB_URL}
     username: ${DB_USER}

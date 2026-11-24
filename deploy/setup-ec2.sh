@@ -1,6 +1,6 @@
 set -euo pipefail
 
-FRONT_URL="${1:-http://localhost:5173}"
+FRONT_URL="${1:-https://www.xepamais.com.br,https://xepamais.com.br,https://xepa-mais.vercel.app}"
 DB_NAME="db_xepa"
 DB_USER="xepamais"
 

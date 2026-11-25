@@ -33,16 +33,19 @@ public class AdminController {
     private final PasswordHasher hasher;
     private final AdminTokenService tokens;
     private final AdminBancoService banco;
+    private final AdminUsuariosService usuarios;
     private final Map<String, long[]> falhas = new ConcurrentHashMap<>();
 
     public AdminController(@Value("${app.admin.email}") String emailAdmin,
                            @Value("${app.admin.senha-hash}") String senhaHash,
-                           PasswordHasher hasher, AdminTokenService tokens, AdminBancoService banco) {
+                           PasswordHasher hasher, AdminTokenService tokens, AdminBancoService banco,
+                           AdminUsuariosService usuarios) {
         this.emailAdmin = emailAdmin.trim().toLowerCase(Locale.ROOT);
         this.senhaHash = senhaHash;
         this.hasher = hasher;
         this.tokens = tokens;
         this.banco = banco;
+        this.usuarios = usuarios;
     }
 
     public record LoginAdmin(String email, String senha) {}
@@ -67,6 +70,11 @@ public class AdminController {
         }
         falhas.remove(origem);
         return Map.of("token", tokens.gerar(email), "email", email);
+    }
+
+    @GetMapping("/usuarios")
+    public AdminUsuariosService.Usuarios usuarios() {
+        return usuarios.listar();
     }
 
     @GetMapping("/tabelas")

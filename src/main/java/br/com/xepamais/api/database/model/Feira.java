@@ -5,6 +5,8 @@ import lombok.Getter;
 import lombok.Setter;
 import java.math.BigDecimal;
 import java.time.LocalTime;
+import java.util.HashSet;
+import java.util.Set;
 
 @Entity
 @Table(name = "tb_feira")
@@ -23,6 +25,9 @@ public class Feira {
     @Column(name = "endereco_feira", nullable = false, length = 150)
     private String endereco;
 
+    @Column(name = "numero_feira", length = 10)
+    private String numero;
+
     @Column(name = "cep_feira", length = 8)
     private String cep;
 
@@ -32,8 +37,11 @@ public class Feira {
     @Column(name = "uf_feira", nullable = false, length = 2)
     private String uf;
 
-    @Column(name = "dia_semana", nullable = false)
-    private Integer diaSemana;
+    // Dias da feira ficam em tb_feira_dia: 1=segunda ... 7=domingo (igual ao DayOfWeek do Java).
+    @ElementCollection
+    @CollectionTable(name = "tb_feira_dia", joinColumns = @JoinColumn(name = "id_feira"))
+    @Column(name = "dia_semana")
+    private Set<Integer> dias = new HashSet<>();
 
     @Column(name = "horario_inicio")
     private LocalTime horarioInicio;

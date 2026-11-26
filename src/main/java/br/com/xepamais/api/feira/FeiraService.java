@@ -1,24 +1,32 @@
 package br.com.xepamais.api.feira;
 
 import br.com.xepamais.api.database.model.Feira;
+import br.com.xepamais.api.database.model.Feirante;
 import br.com.xepamais.api.database.repository.FeiraRepository;
+import br.com.xepamais.api.database.repository.FeiranteRepository;
+import br.com.xepamais.api.feira.dto.FeiraDtos.FeiraRequest;
 import br.com.xepamais.api.feira.dto.FeiraDtos.FeiraResponse;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
+import java.math.BigDecimal;
 import java.util.Comparator;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Locale;
 
 @Service
 public class FeiraService {
     private static final double RAIO_TERRA_KM = 6371;
 
     private final FeiraRepository feiraRepository;
+    private final FeiranteRepository feiranteRepository;
 
-    public FeiraService(FeiraRepository feiraRepository) {
+    public FeiraService(FeiraRepository feiraRepository, FeiranteRepository feiranteRepository) {
         this.feiraRepository = feiraRepository;
+        this.feiranteRepository = feiranteRepository;
     }
 
     // Todas as feiras cadastradas.
@@ -45,6 +53,114 @@ public class FeiraService {
                 .sorted(Comparator.comparingDouble(feira -> distanciaKm(lat, lng, feira)))
                 .map(this::response)
                 .toList();
+    }
+
+    // ---------- Feiras do feirante ----------
+
+    @Transactional(readOnly = true)
+    public List<FeiraResponse> listarDoFeirante(Integer idConta) {
+        feirante(idConta);
+        return feiraRepository.doFeirante(idConta).stream()
+                .map(this::response)
+                .toList();
+    }
+
+    // Cria a feira e liga ao feirante (tb_feirante_feira). Ela passa a aparecer no mapa do consumidor.
+    @Transactional
+    public FeiraResponse criar(Integer idConta, FeiraRequest request) {
+        Feirante feirante = feirante(idConta);
+        Feira feira = new Feira();
+        preencher(feira, request);
+        feira = feiraRepository.save(feira);
+
+        if (feirante.getFeiras() == null) feirante.setFeiras(new HashSet<>());
+        feirante.getFeiras().add(feira);
+        return response(feira);
+    }
+
+    @Transactional
+    public FeiraResponse atualizar(Integer idConta, Integer idFeira, FeiraRequest request) {
+        Feira feira = feiraDoFeirante(idConta, idFeira);
+        preencher(feira, request);
+        return response(feira);
+    }
+
+    // Se a feira tiver xepas ou entregas, o banco recusa e o controller responde 409.
+    @Transactional
+    public void excluir(Integer idConta, Integer idFeira) {
+        Feirante feirante = feirante(idConta);
+        Feira feira = feiraDoFeirante(idConta, idFeira);
+        feirante.getFeiras().remove(feira);
+        feiraRepository.delete(feira);
+        feiraRepository.flush();
+    }
+
+    private Feirante feirante(Integer idConta) {
+        return feiranteRepository.findByConta_Id(idConta)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Feirante não encontrado."));
+    }
+
+    private Feira feiraDoFeirante(Integer idConta, Integer idFeira) {
+        feirante(idConta);
+        return feiraRepository.doFeirante(idConta, idFeira)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Feira não encontrada."));
+    }
+
+    private void preencher(Feira feira, FeiraRequest request) {
+        if (request == null) throw invalido("Dados da feira não enviados.");
+
+        String nome = texto(request.nome(), "Informe o nome da feira.", 100);
+        String endereco = texto(request.endereco(), "Informe o endereço da feira.", 150);
+        String cidade = texto(request.cidade(), "Informe a cidade da feira.", 80);
+        String uf = texto(request.uf(), "Informe a UF da feira.", 2).toUpperCase(Locale.ROOT);
+        if (!uf.matches("[A-Z]{2}")) throw invalido("UF inválida.");
+
+        String cep = request.cep() == null ? "" : request.cep().replaceAll("\\D", "");
+        if (!cep.isEmpty() && cep.length() != 8) throw invalido("O CEP precisa ter 8 números.");
+
+        String numero = request.numero() == null ? "" : request.numero().trim();
+        if (numero.length() > 10) throw invalido("O número pode ter até 10 caracteres.");
+
+        List<Integer> dias = request.dias() == null ? List.of() : request.dias();
+        if (dias.stream().anyMatch(dia -> dia == null || dia < 1 || dia > 7)) {
+            throw invalido("Dia da semana inválido (use 1=segunda ... 7=domingo).");
+        }
+
+        if (request.horarioInicio() != null && request.horarioFim() != null
+                && !request.horarioFim().isAfter(request.horarioInicio())) {
+            throw invalido("O horário de fim precisa ser depois do início.");
+        }
+
+        BigDecimal lat = request.latitude();
+        BigDecimal lng = request.longitude();
+        if (lat == null || lng == null) throw invalido("Não foi possível localizar a feira no mapa.");
+        if (lat.abs().compareTo(BigDecimal.valueOf(90)) > 0 || lng.abs().compareTo(BigDecimal.valueOf(180)) > 0) {
+            throw invalido("Latitude ou longitude inválida.");
+        }
+
+        feira.setNome(nome);
+        feira.setEndereco(endereco);
+        feira.setNumero(numero.isEmpty() ? null : numero);
+        feira.setCep(cep.isEmpty() ? null : cep);
+        feira.setCidade(cidade);
+        feira.setUf(uf);
+        feira.getDias().clear();
+        feira.getDias().addAll(dias);
+        feira.setHorarioInicio(request.horarioInicio());
+        feira.setHorarioFim(request.horarioFim());
+        feira.setLatitude(lat.setScale(6, java.math.RoundingMode.HALF_UP));
+        feira.setLongitude(lng.setScale(6, java.math.RoundingMode.HALF_UP));
+    }
+
+    private static String texto(String valor, String mensagem, int maximo) {
+        String limpo = valor == null ? "" : valor.trim();
+        if (limpo.isEmpty()) throw invalido(mensagem);
+        if (limpo.length() > maximo) throw invalido(mensagem.replace("Informe", "Encurte"));
+        return limpo;
+    }
+
+    private static ResponseStatusException invalido(String mensagem) {
+        return new ResponseStatusException(HttpStatus.BAD_REQUEST, mensagem);
     }
 
     private boolean temCoordenada(Feira feira) {

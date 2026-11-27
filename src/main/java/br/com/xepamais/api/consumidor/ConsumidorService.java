@@ -97,6 +97,59 @@ public class ConsumidorService {
         itemCarrinhoRepository.esvaziar(carrinho.getId());
     }
 
+    // ---------- Endereço de entrega ----------
+
+    @Transactional(readOnly = true)
+    public RecebimentoPreferidoResponse recebimento(Integer idConta) {
+        return recebimento(consumidor(idConta));
+    }
+
+    @Transactional
+    public RecebimentoPreferidoResponse salvarRecebimento(Integer idConta, RecebimentoPreferidoRequest request) {
+        Consumidor consumidor = consumidor(idConta);
+        if (request == null) throw invalido("Informe a forma de receber.");
+        if (request.tipo() != null) {
+            String tipo = request.tipo().trim().toLowerCase(java.util.Locale.ROOT);
+            if (!tipo.equals("retirada") && !tipo.equals("entrega")) throw invalido("Forma de receber inválida.");
+            consumidor.setRecebimentoPreferido(tipo.equals("entrega") ? "ENTREGA" : "RETIRADA");
+        }
+        if (request.endereco() != null) guardarEndereco(consumidor, request.endereco());
+        return recebimento(consumidor);
+    }
+
+    // Também usado no checkout com entrega: o endereço usado fica salvo para a próxima compra.
+    public void guardarEndereco(Consumidor consumidor, EnderecoRequest e) {
+        String cep = e.cep() == null ? "" : e.cep().replaceAll("\\D", "");
+        if (cep.length() > 8) throw invalido("O CEP precisa ter 8 números.");
+        String uf = texto(e.uf(), 2, "UF");
+        if (uf != null && !uf.matches("[A-Za-z]{2}")) throw invalido("UF inválida.");
+        consumidor.setCepEntrega(cep.isEmpty() ? null : cep);
+        consumidor.setLogradouroEntrega(texto(e.logradouro(), 150, "rua"));
+        consumidor.setNumeroEntrega(texto(e.numero(), 10, "número"));
+        consumidor.setComplementoEntrega(texto(e.complemento(), 60, "complemento"));
+        consumidor.setBairroEntrega(texto(e.bairro(), 80, "bairro"));
+        consumidor.setCidadeEntrega(texto(e.cidade(), 80, "cidade"));
+        consumidor.setUfEntrega(uf == null ? null : uf.toUpperCase(java.util.Locale.ROOT));
+    }
+
+    private RecebimentoPreferidoResponse recebimento(Consumidor c) {
+        return new RecebimentoPreferidoResponse("ENTREGA".equals(c.getRecebimentoPreferido()) ? "entrega" : "retirada",
+                new EnderecoResponse(vazio(c.getCepEntrega()), vazio(c.getLogradouroEntrega()),
+                        vazio(c.getNumeroEntrega()), vazio(c.getComplementoEntrega()), vazio(c.getBairroEntrega()),
+                        vazio(c.getCidadeEntrega()), vazio(c.getUfEntrega())));
+    }
+
+    private static String texto(String valor, int maximo, String campo) {
+        if (valor == null || valor.isBlank()) return null;
+        String limpo = valor.trim();
+        if (limpo.length() > maximo) throw invalido("Confira o campo " + campo + " (máximo " + maximo + " caracteres).");
+        return limpo;
+    }
+
+    private static String vazio(String valor) {
+        return valor == null ? "" : valor;
+    }
+
     public Carrinho carrinhoDo(Consumidor consumidor) {
         return carrinhoRepository.findByConsumidor_Id(consumidor.getId()).orElseGet(() -> {
             Carrinho novo = new Carrinho();

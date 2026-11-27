@@ -50,14 +50,17 @@ public class PedidoService {
     private final RendaRepository rendaRepository;
     private final OrigemRendaRepository origemRendaRepository;
     private final FeiranteRepository feiranteRepository;
+    private final br.com.xepamais.api.plano.PlanoService planoService;
     private final ChatRepository chatRepository;
+    private final AvaliacaoRepository avaliacaoRepository;
 
     public PedidoService(ConsumidorService consumidorService, XepaRepository xepaRepository,
                          PedidoRepository pedidoRepository, ItemPedidoRepository itemPedidoRepository,
                          ItemCarrinhoRepository itemCarrinhoRepository, PagamentoRepository pagamentoRepository,
                          TipoPagamentoRepository tipoPagamentoRepository, RendaRepository rendaRepository,
                          OrigemRendaRepository origemRendaRepository, FeiranteRepository feiranteRepository,
-                         ChatRepository chatRepository) {
+                         ChatRepository chatRepository, br.com.xepamais.api.plano.PlanoService planoService,
+                         AvaliacaoRepository avaliacaoRepository) {
         this.consumidorService = consumidorService;
         this.xepaRepository = xepaRepository;
         this.pedidoRepository = pedidoRepository;
@@ -69,6 +72,8 @@ public class PedidoService {
         this.origemRendaRepository = origemRendaRepository;
         this.feiranteRepository = feiranteRepository;
         this.chatRepository = chatRepository;
+        this.avaliacaoRepository = avaliacaoRepository;
+        this.planoService = planoService;
     }
 
     // ---------- Checkout ----------
@@ -89,6 +94,9 @@ public class PedidoService {
         RecebimentoRequest recebimento = request == null ? null : request.recebimento();
         boolean entrega = recebimento != null && "entrega".equalsIgnoreCase(recebimento.tipo());
         String endereco = entrega ? endereco(recebimento.endereco()) : null;
+        // O endereço da entrega fica salvo na conta para a próxima compra (em qualquer aparelho).
+        consumidor.setRecebimentoPreferido(entrega ? "ENTREGA" : "RETIRADA");
+        if (entrega) consumidorService.guardarEndereco(consumidor, recebimento.endereco());
         Map<String, BigDecimal> fretes = entrega ? fretes(recebimento.fretes()) : Map.of();
         TipoPagamento tipoPagamento = tipoPagamento(request == null ? null : request.metodoPagamento());
 
@@ -129,8 +137,8 @@ public class PedidoService {
                     .map(nome -> fretes.getOrDefault(nome.toLowerCase(Locale.ROOT), BigDecimal.ZERO))
                     .reduce(BigDecimal.ZERO, BigDecimal::add);
 
-            BigDecimal percentual = feirante.getPlano() == null || feirante.getPlano().getPercentualComissao() == null
-                    ? BigDecimal.ZERO : feirante.getPlano().getPercentualComissao();
+            // Comissão do plano do feirante (sem plano escolhido vale o Semente).
+            BigDecimal percentual = planoService.comissaoDo(feirante);
             BigDecimal comissao = subtotal.multiply(percentual).divide(CEM, 2, RoundingMode.HALF_UP);
 
             Pedido pedido = new Pedido();
@@ -303,6 +311,65 @@ public class PedidoService {
         return respostas(List.of(pedido)).get(0).semCodigo();
     }
 
+    // ---------- Cancelamento ----------
+
+    // O consumidor cancela antes de retirar (ex.: não vai conseguir buscar).
+    @Transactional
+    public PedidoResponse cancelarPeloConsumidor(Integer idConta, Integer idPedido) {
+        Consumidor consumidor = consumidorService.consumidor(idConta);
+        Pedido pedido = pedidoRepository.findByIdAndConsumidor_Id(idPedido, consumidor.getId())
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Pedido não encontrado."));
+        cancelar(pedido);
+        return respostas(List.of(pedido)).get(0);
+    }
+
+    // O feirante cancela (ex.: a xepa acabou na barraca).
+    @Transactional
+    public PedidoResponse cancelarPeloFeirante(Integer idConta, Integer idPedido) {
+        Feirante feirante = feirante(idConta);
+        Pedido pedido = pedidoRepository.findById(idPedido)
+                .filter(p -> p.getFeirante().getId().equals(feirante.getId()))
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Pedido não encontrado."));
+        cancelar(pedido);
+        return respostas(List.of(pedido)).get(0).semCodigo();
+    }
+
+    // Cancela o pedido: o estoque volta para a vitrine, o Pix é marcado como estornado,
+    // a venda sai do financeiro do feirante e a conversa do pedido é finalizada.
+    // Ainda não há gateway: o estorno do dinheiro é combinado fora do app.
+    private void cancelar(Pedido pedido) {
+        if ("RETIRADO".equals(pedido.getStatus())) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "Pedido já retirado não pode ser cancelado.");
+        }
+        if ("CANCELADO".equals(pedido.getStatus())) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "Este pedido já foi cancelado.");
+        }
+        LocalDateTime agora = LocalDateTime.now(XepaService.FUSO);
+
+        List<ItemPedido> itens = itensPorPedido(List.of(pedido)).getOrDefault(pedido.getId(), List.of());
+        Map<Integer, Xepa> xepas = xepaRepository.travar(itens.stream().map(i -> i.getXepa().getId()).toList())
+                .stream().collect(Collectors.toMap(Xepa::getId, x -> x));
+        for (ItemPedido item : itens) {
+            Xepa xepa = xepas.get(item.getXepa().getId());
+            if (xepa == null) continue;
+            xepa.setQuantidade(xepa.getQuantidade().add(item.getQuantidade()));
+            if ("ESGOTADA".equals(xepa.getStatus())) xepa.setStatus("DISPONIVEL");
+        }
+
+        for (Pagamento pagamento : pagamentoRepository.findByPedido_Id(pedido.getId())) {
+            if ("APROVADO".equals(pagamento.getStatus())) pagamento.setStatus("ESTORNADO");
+            else if ("PENDENTE".equals(pagamento.getStatus())) pagamento.setStatus("RECUSADO");
+        }
+        rendaRepository.findByPedido_Id(pedido.getId()).ifPresent(rendaRepository::delete);
+        chatRepository.findByPedido_Id(pedido.getId()).ifPresent(chat -> {
+            if (!"FINALIZADA".equals(chat.getStatus())) {
+                chat.setStatus("FINALIZADA");
+                chat.setDataFinalizacao(agora);
+            }
+        });
+        pedido.setStatus("CANCELADO");
+    }
+
     // Retirado/entregue: o pedido muda de status e a conversa dele vai para "Finalizadas".
     public void marcarRetirado(Pedido pedido) {
         if (!"CANCELADO".equals(pedido.getStatus())) pedido.setStatus("RETIRADO");
@@ -330,13 +397,20 @@ public class PedidoService {
     public List<PedidoResponse> respostas(List<Pedido> pedidos) {
         if (pedidos.isEmpty()) return List.of();
         Map<Integer, List<ItemPedido>> itens = itensPorPedido(pedidos);
-        Map<Integer, Integer> conversas = chatRepository.findByPedido_IdIn(pedidos.stream().map(Pedido::getId).toList())
+        List<Integer> ids = pedidos.stream().map(Pedido::getId).toList();
+        Map<Integer, Integer> conversas = chatRepository.findByPedido_IdIn(ids)
                 .stream().collect(Collectors.toMap(c -> c.getPedido().getId(), Chat::getId, (a, b) -> a));
+        Map<Integer, AvaliacaoResponse> avaliacoes = avaliacaoRepository.findByPedido_IdIn(ids).stream()
+                .collect(Collectors.toMap(a -> a.getPedido().getId(),
+                        a -> new AvaliacaoResponse(a.getNota(), a.getComentario(), a.getDataAvaliacao()), (a, b) -> a));
         return pedidos.stream()
-                .map(p -> resposta(p, itens.getOrDefault(p.getId(), List.of()), conversas.get(p.getId()))).toList();
+                .map(p -> resposta(p, itens.getOrDefault(p.getId(), List.of()), conversas.get(p.getId()),
+                        avaliacoes.get(p.getId())))
+                .toList();
     }
 
-    private static PedidoResponse resposta(Pedido pedido, List<ItemPedido> itens, Integer idConversa) {
+    private static PedidoResponse resposta(Pedido pedido, List<ItemPedido> itens, Integer idConversa,
+                                           AvaliacaoResponse avaliacao) {
         Feirante feirante = pedido.getFeirante();
         List<ItemPedidoResponse> itensResposta = itens.stream().map(item -> {
             Xepa xepa = item.getXepa();
@@ -353,7 +427,7 @@ public class PedidoService {
         return new PedidoResponse(pedido.getId(), numero(pedido), pedido.getDataPedido(), statusDoApp(pedido.getStatus()),
                 pedido.getStatus(), pedido.getCodigoRetirada(), pedido.getValorTotal().subtract(taxa), taxa,
                 pedido.getValorTotal(), feirante.getConta().getId(), feirante.getNomeFantasia(),
-                pedido.getConsumidor().getConta().getNome(), recebimento, itensResposta, idConversa);
+                pedido.getConsumidor().getConta().getNome(), recebimento, itensResposta, idConversa, avaliacao);
     }
 
     static String numero(Pedido pedido) {

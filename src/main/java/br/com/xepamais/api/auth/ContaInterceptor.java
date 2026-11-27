@@ -16,13 +16,14 @@ import java.util.regex.Pattern;
 @Configuration
 public class ContaInterceptor implements HandlerInterceptor, WebMvcConfigurer {
     public static final String ATRIBUTO_CONTA = "idContaLogada";
+    public static final String ATRIBUTO_SESSAO = "idSessaoLogada";
     private static final Pattern ROTA_DA_CONTA =
             Pattern.compile("^/api/(?:consumidor|feirante|financeiro|conta|feiras/feirante)/(\\d+)(?:/.*)?$");
 
-    private final ContaTokenService tokens;
+    private final SessaoService sessoes;
 
-    public ContaInterceptor(ContaTokenService tokens) {
-        this.tokens = tokens;
+    public ContaInterceptor(SessaoService sessoes) {
+        this.sessoes = sessoes;
     }
 
     @Override
@@ -43,14 +44,16 @@ public class ContaInterceptor implements HandlerInterceptor, WebMvcConfigurer {
 
         String cabecalho = request.getHeader("Authorization");
         String token = cabecalho != null && cabecalho.startsWith("Bearer ") ? cabecalho.substring(7) : null;
-        Optional<Integer> logada = tokens.idConta(token);
+        // Token assinado pela API e sessão ainda ativa (não desconectada em "Dispositivos conectados").
+        Optional<ContaTokenService.DadosToken> logada = sessoes.validar(token);
         if (logada.isEmpty()) {
             return negar(response, HttpServletResponse.SC_UNAUTHORIZED, "Sessão expirada. Entre novamente.");
         }
-        if (rota.matches() && !rota.group(1).equals(String.valueOf(logada.get()))) {
+        if (rota.matches() && !rota.group(1).equals(String.valueOf(logada.get().idConta()))) {
             return negar(response, HttpServletResponse.SC_FORBIDDEN, "Você não tem acesso a esta conta.");
         }
-        request.setAttribute(ATRIBUTO_CONTA, logada.get());
+        request.setAttribute(ATRIBUTO_CONTA, logada.get().idConta());
+        request.setAttribute(ATRIBUTO_SESSAO, logada.get().idSessao());
         return true;
     }
 

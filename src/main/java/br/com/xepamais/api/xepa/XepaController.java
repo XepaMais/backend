@@ -47,6 +47,14 @@ public class XepaController {
         return service.publicar(idConta, request);
     }
 
+    // Corrige a xepa: só os campos enviados mudam. Ex.: { "preco": 8.50, "quantidade": 3 }
+    @PutMapping("/feirante/{idConta}/xepas/{id}")
+    public XepaResponse editar(@PathVariable Integer idConta, @PathVariable Integer id,
+                               @RequestBody XepaRequest request) {
+        return service.editar(idConta, id, request);
+    }
+
+    // Exclui a xepa (sai da vitrine; pedidos antigos continuam mostrando o que foi comprado).
     @DeleteMapping("/feirante/{idConta}/xepas/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void cancelar(@PathVariable Integer idConta, @PathVariable Integer id) {

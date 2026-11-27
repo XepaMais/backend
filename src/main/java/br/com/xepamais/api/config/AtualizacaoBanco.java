@@ -13,7 +13,7 @@ import javax.sql.DataSource;
 import java.sql.Connection;
 
 // Ao iniciar, a API cria no MySQL as tabelas e colunas novas que ainda faltam
-// (as mesmas de database/pedido-recebimento.sql e database/nuvem-fotos-perfil-chat.sql).
+// (as mesmas de database/pedido-recebimento.sql, nuvem-fotos-perfil-chat.sql e planos-endereco.sql).
 // Assim nenhum banco (local ou da EC2) fica sem elas e quebra com "Unknown column".
 // Cada passo confere antes se já existe: rodar de novo não muda nada.
 @Component
@@ -40,6 +40,80 @@ public class AtualizacaoBanco implements ApplicationRunner {
         coluna("tb_pedido", "endereco_entrega", "VARCHAR(255) NULL");
         coluna("tb_pedido", "taxa_entrega", "DECIMAL(10,2) NOT NULL DEFAULT 0.00");
         coluna("tb_plano", "percentual_comissao", "DECIMAL(5,2) NOT NULL DEFAULT 0.00");
+
+        // Planos: código igual ao do front (gratis/crescer/pro); os planos padrão não têm colaborador.
+        coluna("tb_plano", "codigo_plano", "VARCHAR(20) NULL AFTER id_plano");
+        if (existeColuna("tb_plano", "codigo_plano") && !existeIndice("tb_plano", "uk_plano_codigo")) {
+            executar("uk_plano_codigo", "ALTER TABLE tb_plano ADD CONSTRAINT uk_plano_codigo UNIQUE (codigo_plano)");
+        }
+        if (colunaObrigatoria("tb_plano", "id_colaborador")) {
+            executar("tb_plano.id_colaborador opcional", "ALTER TABLE tb_plano MODIFY id_colaborador INT NULL");
+        }
+
+        // Dispositivos conectados: tipo do aparelho e navegador de cada login.
+        coluna("tb_dispositivo_sessao", "tipo_aparelho", "VARCHAR(12) NULL AFTER nome_aparelho");
+        coluna("tb_dispositivo_sessao", "navegador", "VARCHAR(60) NULL AFTER tipo_aparelho");
+
+        // Xepinha: conversas com a IA (as mensagens já existiam em tb_mensagem_ia, sem conversa).
+        executar("tabela tb_conversa_ia", """
+                CREATE TABLE IF NOT EXISTS tb_conversa_ia (
+                    id_conversa_ia  INT AUTO_INCREMENT PRIMARY KEY,
+                    id_conta        INT         NOT NULL,
+                    titulo_conversa VARCHAR(60) NOT NULL,
+                    data_criacao    DATETIME    NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                    INDEX idx_conversa_ia_conta (id_conta),
+                    CONSTRAINT fk_conversa_ia_conta FOREIGN KEY (id_conta) REFERENCES tb_conta(id_conta) ON DELETE CASCADE
+                )""");
+        coluna("tb_mensagem_ia", "id_conversa_ia", "INT NULL AFTER id_conta");
+        if (existeColuna("tb_mensagem_ia", "id_conversa_ia") && !existeRestricao("tb_mensagem_ia", "fk_mensagem_ia_conversa")) {
+            executar("fk_mensagem_ia_conversa", "ALTER TABLE tb_mensagem_ia ADD CONSTRAINT fk_mensagem_ia_conversa "
+                    + "FOREIGN KEY (id_conversa_ia) REFERENCES tb_conversa_ia(id_conversa_ia) ON DELETE CASCADE");
+        }
+
+        // Suporte: mensagens do formulário (a equipe vê no painel admin).
+        executar("tabela tb_mensagem_suporte", """
+                CREATE TABLE IF NOT EXISTS tb_mensagem_suporte (
+                    id_mensagem_suporte INT AUTO_INCREMENT PRIMARY KEY,
+                    id_conta            INT          NULL,
+                    nome_remetente      VARCHAR(100) NOT NULL,
+                    email_remetente     VARCHAR(100) NOT NULL,
+                    perfil_remetente    VARCHAR(12)  NOT NULL,
+                    assunto             VARCHAR(150) NOT NULL,
+                    mensagem            TEXT         NOT NULL,
+                    status_suporte      VARCHAR(12)  NOT NULL DEFAULT 'ABERTA',
+                    data_envio          DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                    CONSTRAINT fk_suporte_conta FOREIGN KEY (id_conta) REFERENCES tb_conta(id_conta) ON DELETE SET NULL
+                )""");
+
+        // Funcionários de cada barraca em cada feira.
+        executar("tabela tb_funcionario_feira", """
+                CREATE TABLE IF NOT EXISTS tb_funcionario_feira (
+                    id_funcionario   INT AUTO_INCREMENT PRIMARY KEY,
+                    id_feirante      INT         NOT NULL,
+                    id_feira         INT         NOT NULL,
+                    nome_funcionario VARCHAR(80) NOT NULL,
+                    INDEX idx_funcionario_feirante (id_feirante),
+                    CONSTRAINT fk_funcionario_feirante FOREIGN KEY (id_feirante) REFERENCES tb_feirante(id_feirante) ON DELETE CASCADE,
+                    CONSTRAINT fk_funcionario_feira    FOREIGN KEY (id_feira)    REFERENCES tb_feira(id_feira) ON DELETE CASCADE
+                )""");
+
+        // Receitas da Cozinha: código (liga à foto do front), categoria e dificuldade.
+        coluna("tb_receita_culinaria", "codigo_receita", "VARCHAR(40) NULL AFTER id_receita");
+        coluna("tb_receita_culinaria", "categoria_receita", "VARCHAR(40) NULL AFTER titulo_receita");
+        coluna("tb_receita_culinaria", "dificuldade_receita", "VARCHAR(20) NULL AFTER categoria_receita");
+        if (existeColuna("tb_receita_culinaria", "codigo_receita") && !existeIndice("tb_receita_culinaria", "uk_receita_codigo")) {
+            executar("uk_receita_codigo", "ALTER TABLE tb_receita_culinaria ADD CONSTRAINT uk_receita_codigo UNIQUE (codigo_receita)");
+        }
+
+        // Endereço de entrega do consumidor (o último usado) e a forma de receber preferida.
+        coluna("tb_consumidor", "recebimento_preferido", "VARCHAR(10) NOT NULL DEFAULT 'RETIRADA'");
+        coluna("tb_consumidor", "cep_entrega", "CHAR(8) NULL");
+        coluna("tb_consumidor", "logradouro_entrega", "VARCHAR(150) NULL");
+        coluna("tb_consumidor", "numero_entrega", "VARCHAR(10) NULL");
+        coluna("tb_consumidor", "complemento_entrega", "VARCHAR(60) NULL");
+        coluna("tb_consumidor", "bairro_entrega", "VARCHAR(80) NULL");
+        coluna("tb_consumidor", "cidade_entrega", "VARCHAR(80) NULL");
+        coluna("tb_consumidor", "uf_entrega", "CHAR(2) NULL");
 
         // Fotos (xepas e perfil).
         executar("tabela tb_imagem", """
@@ -106,6 +180,11 @@ public class AtualizacaoBanco implements ApplicationRunner {
     private boolean existeColuna(String tabela, String coluna) {
         return contar("SELECT COUNT(*) FROM information_schema.COLUMNS "
                 + "WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ? AND COLUMN_NAME = ?", tabela, coluna) > 0;
+    }
+
+    private boolean colunaObrigatoria(String tabela, String coluna) {
+        return contar("SELECT COUNT(*) FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = DATABASE() "
+                + "AND TABLE_NAME = ? AND COLUMN_NAME = ? AND IS_NULLABLE = 'NO'", tabela, coluna) > 0;
     }
 
     private boolean existeIndice(String tabela, String indice) {

@@ -21,6 +21,12 @@ public class VendasFeiranteController {
         return pedidoService.vendasDoFeirante(idConta);
     }
 
+    // O feirante cancela a venda (ex.: a xepa acabou na barraca).
+    @PostMapping("/{idPedido}/cancelar")
+    public PedidoResponse cancelar(@PathVariable Integer idConta, @PathVariable Integer idPedido) {
+        return pedidoService.cancelarPeloFeirante(idConta, idPedido);
+    }
+
     // { "codigo": "1234" } — o código que o consumidor mostra na retirada.
     @PostMapping("/{idPedido}/retirada")
     public PedidoResponse confirmarRetirada(@PathVariable Integer idConta, @PathVariable Integer idPedido,

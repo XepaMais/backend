@@ -34,6 +34,8 @@ public class Avaliacao {
     @Column(columnDefinition = "TEXT")
     private String comentario;
 
-    @Column(name = "data_avaliacao", nullable = false, insertable = false, updatable = false)
+    // Preenchida pela API (e atualizada quando o consumidor muda a avaliação).
+    @org.hibernate.annotations.ColumnDefault("CURRENT_TIMESTAMP")
+    @Column(name = "data_avaliacao", nullable = false)
     private LocalDateTime dataAvaliacao;
 }

@@ -18,7 +18,7 @@ import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.web.context.WebApplicationContext;
 import br.com.xepamais.api.TokenDaRota;
-import br.com.xepamais.api.auth.ContaTokenService;
+import br.com.xepamais.api.auth.SessaoService;
 
 import java.time.LocalTime;
 import java.util.HashSet;
@@ -42,7 +42,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 class ConsumidorControllerTest {
 
     @Autowired WebApplicationContext contexto;
-    @Autowired ContaTokenService tokens;
+    @Autowired SessaoService tokens;
     MockMvc mvc;
     @Autowired ContaRepository contaRepository;
     @Autowired FeiranteRepository feiranteRepository;
@@ -175,8 +175,9 @@ class ConsumidorControllerTest {
         mvc.perform(get(vendas))
                 .andExpect(jsonPath("$[0].id").value(idPedido))
                 .andExpect(jsonPath("$[0].codigo").doesNotExist());
+        // Sem plano escolhido vale o Semente (15% sobre os 37,00 das xepas = 5,55): 43,79 - 5,55.
         mvc.perform(get("/api/financeiro/" + contaFeirante + "/rendas"))
-                .andExpect(jsonPath("$[0].valor").value(43.79));
+                .andExpect(jsonPath("$[0].valor").value(38.24));
         mvc.perform(post(vendas + "/" + idPedido + "/retirada").contentType(MediaType.APPLICATION_JSON)
                         .content("{\"codigo\":\"0000\"}"))
                 .andExpect(status().isBadRequest());

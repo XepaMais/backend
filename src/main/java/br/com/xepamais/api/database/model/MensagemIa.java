@@ -3,8 +3,11 @@ package br.com.xepamais.api.database.model;
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
+import org.hibernate.annotations.ColumnDefault;
+
 import java.time.LocalDateTime;
 
+// Mensagem da conversa com a Xepinha. papel: USUARIO (feirante) ou IA.
 @Entity
 @Table(name = "tb_mensagem_ia")
 @Getter
@@ -20,12 +23,18 @@ public class MensagemIa {
     @JoinColumn(name = "id_conta", nullable = false)
     private Conta conta;
 
+    // Coluna criada pela AtualizacaoBanco (mensagens antigas ficam sem conversa).
+    @ManyToOne
+    @JoinColumn(name = "id_conversa_ia")
+    private ConversaIa conversa;
+
     @Column(nullable = false, length = 10)
     private String papel;
 
     @Column(name = "texto_mensagem_ia", nullable = false, columnDefinition = "TEXT")
     private String texto;
 
-    @Column(name = "data_envio", nullable = false, insertable = false, updatable = false)
+    @ColumnDefault("CURRENT_TIMESTAMP")
+    @Column(name = "data_envio", nullable = false, updatable = false)
     private LocalDateTime dataEnvio;
 }

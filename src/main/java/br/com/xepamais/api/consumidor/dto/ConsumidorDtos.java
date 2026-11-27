@@ -25,6 +25,17 @@ public final class ConsumidorDtos {
     // Troca o carrinho inteiro (usado para sincronizar o carrinho que o navegador já tinha).
     public record CarrinhoRequest(List<ItemCarrinhoRequest> itens) {}
 
+    // ---------- Endereço de entrega ----------
+
+    // tipo: "retirada" ou "entrega" (forma de receber escolhida por último). Campos vazios vêm como "".
+    public record EnderecoResponse(String cep, String logradouro, String numero, String complemento,
+                                   String bairro, String cidade, String uf) {}
+
+    public record RecebimentoPreferidoResponse(String tipo, EnderecoResponse endereco) {}
+
+    // Pode salvar o endereço pela metade (a pessoa ainda está digitando). O checkout exige completo.
+    public record RecebimentoPreferidoRequest(String tipo, EnderecoRequest endereco) {}
+
     // ---------- Pedidos ----------
 
     public record EnderecoRequest(String cep, String logradouro, String numero, String complemento,
@@ -51,18 +62,23 @@ public final class ConsumidorDtos {
 
     // status: texto que o front mostra ("Pendente de retirada", "Retirado", "Cancelado").
     // situacao: valor salvo no banco (PAGO, PRONTO_RETIRADA, RETIRADO...).
-    // idConversa: chat do pedido (aberto no checkout).
+    // idConversa: chat do pedido (aberto no checkout). avaliacao: nota dada pelo consumidor depois da retirada.
     public record PedidoResponse(Integer id, String numero, LocalDateTime data, String status, String situacao,
                                  String codigo, BigDecimal subtotal, BigDecimal taxaEntrega, BigDecimal total,
                                  Integer idFeirante, String barraca, String consumidor,
                                  RecebimentoResponse recebimento, List<ItemPedidoResponse> itens,
-                                 Integer idConversa) {
+                                 Integer idConversa, AvaliacaoResponse avaliacao) {
         // Para o feirante: o código fica só com o consumidor (é ele quem mostra na retirada).
         public PedidoResponse semCodigo() {
             return new PedidoResponse(id, numero, data, status, situacao, null, subtotal, taxaEntrega, total,
-                    idFeirante, barraca, consumidor, recebimento, itens, idConversa);
+                    idFeirante, barraca, consumidor, recebimento, itens, idConversa, avaliacao);
         }
     }
+
+    // Avaliação do pedido pelo consumidor (null enquanto não avaliou). nota: 1 a 5.
+    public record AvaliacaoResponse(Integer nota, String comentario, LocalDateTime data) {}
+
+    public record AvaliacaoRequest(Integer nota, String comentario) {}
 
     public record RetiradaRequest(String codigo) {}
 

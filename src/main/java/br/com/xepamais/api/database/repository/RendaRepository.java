@@ -16,6 +16,9 @@ public interface RendaRepository extends JpaRepository<Renda, Integer> {
 
     Optional<Renda> findByIdAndFeirante_Id(Integer id, Integer idFeirante);
 
+    // Renda automática da venda pelo app (uma por pedido).
+    Optional<Renda> findByPedido_Id(Integer idPedido);
+
     @Query("select coalesce(sum(r.valor), 0) from Renda r where r.feirante.id = :idFeirante and r.origem.nome = :origem")
     BigDecimal somarPorOrigem(@Param("idFeirante") Integer idFeirante, @Param("origem") String origem);
 }

@@ -52,6 +52,21 @@ public class ConsumidorController {
         consumidorService.esvaziar(idConta);
     }
 
+    // ---------- Endereço de entrega ----------
+
+    // Forma de receber e último endereço de entrega (vale em qualquer aparelho).
+    @GetMapping("/endereco")
+    public RecebimentoPreferidoResponse recebimento(@PathVariable Integer idConta) {
+        return consumidorService.recebimento(idConta);
+    }
+
+    // { "tipo": "entrega", "endereco": { "cep": "05042000", "logradouro": "Rua A", ... } }
+    @PutMapping("/endereco")
+    public RecebimentoPreferidoResponse salvarRecebimento(@PathVariable Integer idConta,
+                                                          @RequestBody RecebimentoPreferidoRequest request) {
+        return consumidorService.salvarRecebimento(idConta, request);
+    }
+
     // ---------- Pedidos ----------
 
     // Confirma o pagamento. Devolve um pedido por feirante.
@@ -65,6 +80,12 @@ public class ConsumidorController {
     @GetMapping("/pedidos")
     public List<PedidoResponse> pedidos(@PathVariable Integer idConta) {
         return pedidoService.listar(idConta);
+    }
+
+    // Cancela o pedido antes da retirada (estoque volta, Pix marcado como estornado).
+    @PostMapping("/pedidos/{idPedido}/cancelar")
+    public PedidoResponse cancelarPedido(@PathVariable Integer idConta, @PathVariable Integer idPedido) {
+        return pedidoService.cancelarPeloConsumidor(idConta, idPedido);
     }
 
     @GetMapping("/pedidos/{idPedido}")

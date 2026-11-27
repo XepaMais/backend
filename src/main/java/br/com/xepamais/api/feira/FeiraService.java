@@ -4,6 +4,8 @@ import br.com.xepamais.api.database.model.Feira;
 import br.com.xepamais.api.database.model.Feirante;
 import br.com.xepamais.api.database.repository.FeiraRepository;
 import br.com.xepamais.api.database.repository.FeiranteRepository;
+import br.com.xepamais.api.database.model.FuncionarioFeira;
+import br.com.xepamais.api.database.repository.FuncionarioFeiraRepository;
 import br.com.xepamais.api.feira.dto.FeiraDtos.FeiraRequest;
 import br.com.xepamais.api.feira.dto.FeiraDtos.FeiraResponse;
 import org.springframework.http.HttpStatus;
@@ -16,6 +18,9 @@ import java.util.Comparator;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
+import java.util.Objects;
+import java.util.stream.Collectors;
 
 @Service
 public class FeiraService {
@@ -23,8 +28,11 @@ public class FeiraService {
 
     private final FeiraRepository feiraRepository;
     private final FeiranteRepository feiranteRepository;
+    private final FuncionarioFeiraRepository funcionarioRepository;
 
-    public FeiraService(FeiraRepository feiraRepository, FeiranteRepository feiranteRepository) {
+    public FeiraService(FeiraRepository feiraRepository, FeiranteRepository feiranteRepository,
+                        FuncionarioFeiraRepository funcionarioRepository) {
+        this.funcionarioRepository = funcionarioRepository;
         this.feiraRepository = feiraRepository;
         this.feiranteRepository = feiranteRepository;
     }
@@ -78,9 +86,10 @@ public class FeiraService {
 
     @Transactional(readOnly = true)
     public List<FeiraResponse> listarDoFeirante(Integer idConta) {
-        feirante(idConta);
+        Feirante feirante = feirante(idConta);
+        Map<Integer, List<String>> funcionarios = funcionariosPorFeira(feirante);
         return feiraRepository.doFeirante(idConta).stream()
-                .map(this::response)
+                .map(feira -> response(feira, funcionarios.getOrDefault(feira.getId(), List.of())))
                 .toList();
     }
 
@@ -94,14 +103,43 @@ public class FeiraService {
 
         if (feirante.getFeiras() == null) feirante.setFeiras(new HashSet<>());
         feirante.getFeiras().add(feira);
-        return response(feira);
+        return response(feira, salvarFuncionarios(feirante, feira, request.funcionarios()));
     }
 
     @Transactional
     public FeiraResponse atualizar(Integer idConta, Integer idFeira, FeiraRequest request) {
+        Feirante feirante = feirante(idConta);
         Feira feira = feiraDoFeirante(idConta, idFeira);
         preencher(feira, request);
-        return response(feira);
+        List<String> funcionarios = request.funcionarios() == null
+                ? funcionariosPorFeira(feirante).getOrDefault(feira.getId(), List.of())
+                : salvarFuncionarios(feirante, feira, request.funcionarios());
+        return response(feira, funcionarios);
+    }
+
+    // Troca a lista de funcionários do feirante nessa feira (nomes vazios ou repetidos são ignorados).
+    private List<String> salvarFuncionarios(Feirante feirante, Feira feira, List<String> nomes) {
+        funcionarioRepository.apagar(feirante.getId(), feira.getId());
+        if (nomes == null) return List.of();
+        List<String> limpos = nomes.stream()
+                .filter(Objects::nonNull).map(String::trim).filter(nome -> !nome.isEmpty())
+                .distinct().limit(20).toList();
+        for (String nome : limpos) {
+            if (nome.length() > 80) throw invalido("O nome do funcionário pode ter até 80 caracteres.");
+            FuncionarioFeira funcionario = new FuncionarioFeira();
+            funcionario.setFeirante(feirante);
+            funcionario.setFeira(feira);
+            funcionario.setNome(nome);
+            funcionarioRepository.save(funcionario);
+        }
+        return limpos;
+    }
+
+    // Funcionários do feirante, agrupados por feira (usado também no perfil público do feirante).
+    public Map<Integer, List<String>> funcionariosPorFeira(Feirante feirante) {
+        return funcionarioRepository.findByFeirante_IdOrderByIdAsc(feirante.getId()).stream()
+                .collect(Collectors.groupingBy(f -> f.getFeira().getId(),
+                        Collectors.mapping(FuncionarioFeira::getNome, Collectors.toList())));
     }
 
     // Se a feira tiver xepas ou entregas, o banco recusa e o controller responde 409.
@@ -109,6 +147,7 @@ public class FeiraService {
     public void excluir(Integer idConta, Integer idFeira) {
         Feirante feirante = feirante(idConta);
         Feira feira = feiraDoFeirante(idConta, idFeira);
+        funcionarioRepository.apagar(feirante.getId(), feira.getId());
         feirante.getFeiras().remove(feira);
         feiraRepository.delete(feira);
         feiraRepository.flush();
@@ -201,8 +240,13 @@ public class FeiraService {
     }
 
     private FeiraResponse response(Feira feira) {
+        return response(feira, List.of());
+    }
+
+    private FeiraResponse response(Feira feira, List<String> funcionarios) {
         return new FeiraResponse(feira.getId(), feira.getNome(), feira.getEndereco(), feira.getNumero(),
                 feira.getCep(), feira.getCidade(), feira.getUf(), feira.getDias().stream().sorted().toList(),
-                feira.getHorarioInicio(), feira.getHorarioFim(), feira.getLatitude(), feira.getLongitude());
+                feira.getHorarioInicio(), feira.getHorarioFim(), feira.getLatitude(), feira.getLongitude(),
+                funcionarios);
     }
 }

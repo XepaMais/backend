@@ -10,6 +10,7 @@ import br.com.xepamais.api.database.model.Feirante;
 import br.com.xepamais.api.database.repository.ContaRepository;
 import br.com.xepamais.api.database.repository.ConsumidorRepository;
 import br.com.xepamais.api.database.repository.FeiranteRepository;
+import br.com.xepamais.api.plano.PlanoService;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -23,20 +24,20 @@ public class AuthService {
     private final ConsumidorRepository consumidorRepository;
     private final FeiranteRepository feiranteRepository;
     private final PasswordHasher passwordHasher;
-    private final ContaTokenService contaTokenService;
+    private final SessaoService sessaoService;
 
     public AuthService(ContaRepository contaRepository, ConsumidorRepository consumidorRepository,
                        FeiranteRepository feiranteRepository,
-                       PasswordHasher passwordHasher, ContaTokenService contaTokenService) {
+                       PasswordHasher passwordHasher, SessaoService sessaoService) {
         this.contaRepository = contaRepository;
         this.consumidorRepository = consumidorRepository;
         this.feiranteRepository = feiranteRepository;
         this.passwordHasher = passwordHasher;
-        this.contaTokenService = contaTokenService;
+        this.sessaoService = sessaoService;
     }
 
     @Transactional
-    public ContaResponse cadastrarConsumidor(CadastroConsumidorRequest request) {
+    public ContaResponse cadastrarConsumidor(CadastroConsumidorRequest request, String userAgent) {
         validarCadastro(request);
         String email = request.email().trim().toLowerCase(Locale.ROOT);
         String cpf = request.cpf().replaceAll("\\D", "");
@@ -56,11 +57,11 @@ public class AuthService {
         Consumidor consumidor = new Consumidor();
         consumidor.setConta(conta);
         consumidorRepository.save(consumidor);
-        return response(conta, "CONSUMIDOR");
+        return response(conta, "CONSUMIDOR", userAgent);
     }
 
     @Transactional
-    public ContaResponse cadastrarFeirante(CadastroFeiranteRequest request) {
+    public ContaResponse cadastrarFeirante(CadastroFeiranteRequest request, String userAgent) {
         validarCadastroFeirante(request);
         String email = request.email().trim().toLowerCase(Locale.ROOT);
         String cpf = request.cpf().replaceAll("\\D", "");
@@ -92,11 +93,11 @@ public class AuthService {
         feirante.setMatricula(request.matricula().trim());
         feirante.setGrupoComercio(request.grupoComercio().trim());
         feiranteRepository.save(feirante);
-        return response(conta, "FEIRANTE");
+        return response(conta, "FEIRANTE", userAgent);
     }
 
-    @Transactional(readOnly = true)
-    public ContaResponse login(LoginRequest request) {
+    @Transactional
+    public ContaResponse login(LoginRequest request, String userAgent) {
         if (request == null || vazio(request.email()) || vazio(request.senha())) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Informe email e senha.");
         }
@@ -108,7 +109,7 @@ public class AuthService {
         String tipo = feiranteRepository.existsByConta_Id(conta.getId())
                 ? "FEIRANTE"
                 : consumidorRepository.existsByConta_Id(conta.getId()) ? "CONSUMIDOR" : "CONTA";
-        return response(conta, tipo);
+        return response(conta, tipo, userAgent);
     }
 
     private void validarCadastroFeirante(CadastroFeiranteRequest request) {
@@ -153,8 +154,13 @@ public class AuthService {
         return value == null || value.isBlank();
     }
 
-    private ContaResponse response(Conta conta, String tipo) {
+    // Cada login abre uma sessão (um aparelho em "Dispositivos conectados").
+    // Feirante: o login já leva o plano escolhido (em outro aparelho o app não pede o plano de novo).
+    private ContaResponse response(Conta conta, String tipo, String userAgent) {
+        String plano = "FEIRANTE".equals(tipo)
+                ? feiranteRepository.findByConta_Id(conta.getId()).map(PlanoService::codigoDo).orElse(null)
+                : null;
         return new ContaResponse(conta.getId(), conta.getNome(), conta.getEmail(), tipo,
-                contaTokenService.gerar(conta.getId()));
+                sessaoService.abrir(conta.getId(), userAgent), plano);
     }
 }

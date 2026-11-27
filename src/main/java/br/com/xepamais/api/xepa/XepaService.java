@@ -157,6 +157,58 @@ public class XepaService {
         return paraResposta(xepaRepository.save(xepa));
     }
 
+    // O feirante corrige a xepa (preço, quantidade, validade, foto...). Campos nulos ficam como estão.
+    // Quantidade 0 = esgotada (sai da vitrine); repor a quantidade volta a xepa para a vitrine.
+    @Transactional
+    public XepaResponse editar(Integer idConta, Integer id, XepaRequest request) {
+        Xepa xepa = xepaRepository.doFeirante(idConta, id)
+                .filter(x -> !"CANCELADA".equals(x.getStatus()))
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Xepa não encontrada."));
+        if (request == null) throw invalido("Informe o que mudou na xepa.");
+        Produto produto = xepa.getProduto();
+
+        if (request.nome() != null) produto.setNome(texto(request.nome(), "Informe o nome da xepa.", 100));
+        if (request.categoria() != null) {
+            String nomeCategoria = Categorias.paraBanco(request.categoria());
+            if (nomeCategoria == null) {
+                throw invalido("Categoria inválida. Use: " + String.join(", ", Categorias.DO_APP) + ".");
+            }
+            produto.setCategoria(categoriaRepository.findByNomeIgnoreCase(nomeCategoria).orElseGet(() -> {
+                Categoria nova = new Categoria();
+                nova.setNome(nomeCategoria);
+                return categoriaRepository.save(nova);
+            }));
+        }
+        if (request.itens() != null || request.descricao() != null) {
+            String[] atual = separarDescricao(produto.getDescricao());
+            produto.setDescricao(juntarDescricao(request.itens() != null ? request.itens() : atual[0],
+                    request.descricao() != null ? request.descricao() : atual[1]));
+        }
+        if (request.imagem() != null) {
+            String imagem = ImagemController.enderecoValido(request.imagem());
+            if (imagem == null && !request.imagem().isBlank()) throw invalido("Envie a foto antes em /api/imagens.");
+            produto.setImagem(imagem);
+        }
+        if (request.precoReferencia() != null) produto.setPrecoReferencia(request.precoReferencia());
+        if (request.preco() != null) xepa.setPreco(valor(request.preco(), "Informe um preço maior que zero."));
+        if (request.quantidade() != null) {
+            if (request.quantidade().signum() < 0 || request.quantidade().compareTo(VALOR_MAXIMO) > 0) {
+                throw invalido("Informe uma quantidade válida.");
+            }
+            xepa.setQuantidade(request.quantidade().setScale(2, RoundingMode.HALF_UP));
+        }
+        if (request.validade() != null) {
+            if (request.validade().isBefore(hoje())) throw invalido("A validade não pode estar no passado.");
+            xepa.setValidade(request.validade());
+        }
+        if (request.idFeira() != null && !request.idFeira().equals(xepa.getFeira().getId())) {
+            xepa.setFeira(feiraRepository.doFeirante(idConta, request.idFeira())
+                    .orElseThrow(() -> invalido("Essa feira não está entre as suas feiras.")));
+        }
+        xepa.setStatus(xepa.getQuantidade().signum() > 0 ? "DISPONIVEL" : "ESGOTADA");
+        return paraResposta(xepa);
+    }
+
     // A xepa sai da vitrine; os pedidos antigos continuam apontando para ela.
     @Transactional
     public void cancelar(Integer idConta, Integer id) {

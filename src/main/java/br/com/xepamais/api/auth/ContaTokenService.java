@@ -8,20 +8,21 @@ import javax.crypto.spec.SecretKeySpec;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.SecureRandom;
-import java.time.Duration;
 import java.time.Instant;
 import java.util.Base64;
 import java.util.Optional;
 
-// Token das contas (consumidor e feirante): "idConta|expiraEm" assinado com HMAC-SHA256.
-// O login devolve o token; o front manda em "Authorization: Bearer <token>".
+// Token das contas (consumidor e feirante): "conta|idConta|idSessao|expiraEm" assinado com HMAC-SHA256.
+// A assinatura prova que o token veio da API; a sessão (tb_dispositivo_sessao) diz se ele ainda vale
+// (ver SessaoService). O front manda em "Authorization: Bearer <token>".
 // Em produção defina AUTH_TOKEN_SECRET (/etc/xepamais/api.env): sem ele a chave é sorteada ao
 // iniciar e reiniciar a API desloga todo mundo.
 @Component
 public class ContaTokenService {
-    private static final Duration VALIDADE = Duration.ofDays(30);
     private static final Base64.Encoder B64 = Base64.getUrlEncoder().withoutPadding();
     private static final Base64.Decoder B64_DEC = Base64.getUrlDecoder();
+
+    public record DadosToken(Integer idConta, Integer idSessao) {}
 
     private final byte[] chave;
 
@@ -34,14 +35,15 @@ public class ContaTokenService {
         }
     }
 
-    public String gerar(Integer idConta) {
-        long expira = Instant.now().plus(VALIDADE).getEpochSecond();
-        String conteudo = B64.encodeToString(("conta|" + idConta + "|" + expira).getBytes(StandardCharsets.UTF_8));
+    public String gerar(Integer idConta, Integer idSessao, Instant expiraEm) {
+        String texto = "conta|" + idConta + "|" + idSessao + "|" + expiraEm.getEpochSecond();
+        String conteudo = B64.encodeToString(texto.getBytes(StandardCharsets.UTF_8));
         return conteudo + "." + B64.encodeToString(assinar(conteudo));
     }
 
-    // Id da conta dona do token, se ele for válido e não tiver vencido.
-    public Optional<Integer> idConta(String token) {
+    // Conta e sessão do token, se a assinatura confere e ele não venceu.
+    // Tokens antigos (sem sessão) não valem mais: a pessoa entra de novo.
+    public Optional<DadosToken> ler(String token) {
         if (token == null) return Optional.empty();
         int ponto = token.indexOf('.');
         if (ponto < 1) return Optional.empty();
@@ -50,9 +52,9 @@ public class ContaTokenService {
             byte[] assinatura = B64_DEC.decode(token.substring(ponto + 1));
             if (!MessageDigest.isEqual(assinatura, assinar(conteudo))) return Optional.empty();
             String[] partes = new String(B64_DEC.decode(conteudo), StandardCharsets.UTF_8).split("\\|");
-            if (partes.length != 3 || !"conta".equals(partes[0])) return Optional.empty();
-            if (Instant.now().getEpochSecond() >= Long.parseLong(partes[2])) return Optional.empty();
-            return Optional.of(Integer.valueOf(partes[1]));
+            if (partes.length != 4 || !"conta".equals(partes[0])) return Optional.empty();
+            if (Instant.now().getEpochSecond() >= Long.parseLong(partes[3])) return Optional.empty();
+            return Optional.of(new DadosToken(Integer.valueOf(partes[1]), Integer.valueOf(partes[2])));
         } catch (IllegalArgumentException ex) {
             return Optional.empty();
         }

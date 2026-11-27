@@ -1,7 +1,7 @@
 package br.com.xepamais.api.chat;
 
 import br.com.xepamais.api.TokenDaRota;
-import br.com.xepamais.api.auth.ContaTokenService;
+import br.com.xepamais.api.auth.SessaoService;
 import br.com.xepamais.api.database.model.Conta;
 import br.com.xepamais.api.database.model.Consumidor;
 import br.com.xepamais.api.database.model.Feira;
@@ -45,7 +45,7 @@ class NuvemTest {
 
     @Autowired MockMvc semToken;
     @Autowired WebApplicationContext contexto;
-    @Autowired ContaTokenService tokens;
+    @Autowired SessaoService tokens;
     @Autowired ContaRepository contaRepository;
     @Autowired FeiranteRepository feiranteRepository;
     @Autowired ConsumidorRepository consumidorRepository;

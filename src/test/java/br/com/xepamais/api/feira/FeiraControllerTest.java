@@ -1,7 +1,7 @@
 package br.com.xepamais.api.feira;
 
 import br.com.xepamais.api.TokenDaRota;
-import br.com.xepamais.api.auth.ContaTokenService;
+import br.com.xepamais.api.auth.SessaoService;
 import br.com.xepamais.api.database.model.Conta;
 import br.com.xepamais.api.database.model.Feirante;
 import br.com.xepamais.api.database.repository.ContaRepository;
@@ -31,7 +31,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 class FeiraControllerTest {
 
     @Autowired WebApplicationContext contexto;
-    @Autowired ContaTokenService tokens;
+    @Autowired SessaoService tokens;
     @Autowired ContaRepository contaRepository;
     @Autowired FeiranteRepository feiranteRepository;
 

@@ -5,6 +5,8 @@ import lombok.Getter;
 import lombok.Setter;
 import java.math.BigDecimal;
 
+// Planos do feirante: Semente (gratis), Broto (crescer) e Colheita (pro).
+// Criados pela API ao iniciar (PlanosIniciais). A comissão do plano vai para cada pedido.
 @Entity
 @Table(name = "tb_plano")
 @Getter
@@ -16,8 +18,13 @@ public class Plano {
     @Column(name = "id_plano")
     private Integer id;
 
+    // Mesmo id que o front usa: gratis, crescer ou pro.
+    @Column(name = "codigo_plano", length = 20, unique = true)
+    private String codigo;
+
+    // Colaborador que cadastrou o plano. Os planos padrão são criados pelo sistema (sem colaborador).
     @ManyToOne
-    @JoinColumn(name = "id_colaborador", nullable = false)
+    @JoinColumn(name = "id_colaborador")
     private Colaborador colaborador;
 
     @Column(name = "nome_plano", nullable = false, length = 60, unique = true)

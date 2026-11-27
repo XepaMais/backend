@@ -17,7 +17,7 @@ import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.web.context.WebApplicationContext;
 import br.com.xepamais.api.TokenDaRota;
-import br.com.xepamais.api.auth.ContaTokenService;
+import br.com.xepamais.api.auth.SessaoService;
 
 import java.time.LocalDate;
 import java.time.ZoneId;
@@ -42,7 +42,7 @@ class FinanceiroControllerTest {
     private static final String HOJE = LocalDate.now(ZoneId.of("America/Sao_Paulo")).toString();
 
     @Autowired WebApplicationContext contexto;
-    @Autowired ContaTokenService tokens;
+    @Autowired SessaoService tokens;
     MockMvc mvc;
     @Autowired ContaRepository contaRepository;
     @Autowired FeiranteRepository feiranteRepository;
@@ -189,6 +189,10 @@ class FinanceiroControllerTest {
                         .content("{\"valor\":10,\"tipoChave\":\"cpf\",\"chave\":\"123\"}"))
                 .andExpect(status().isBadRequest());
         mvc.perform(get(base + "/historico").param("tipo", "outro")).andExpect(status().isBadRequest());
-        mvc.perform(get("/api/financeiro/999999/resumo")).andExpect(status().isNotFound());
+        // Com o token desta conta, o financeiro de outra conta é recusado antes de chegar ao banco.
+        Integer idConta = Integer.valueOf(base.substring(base.lastIndexOf('/') + 1));
+        mvc.perform(get("/api/financeiro/999999/resumo")
+                        .header("Authorization", "Bearer " + tokens.abrir(idConta, "teste")))
+                .andExpect(status().isForbidden());
     }
 }

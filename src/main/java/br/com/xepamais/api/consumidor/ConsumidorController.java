@@ -6,7 +6,7 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
-// Área do consumidor: perfil, carrinho, pedidos e impacto.
+// Área do consumidor: carrinho, pedidos e impacto.
 // {idConta} é o "id" devolvido pelo login (conta do tipo CONSUMIDOR).
 @RestController
 @RequestMapping("/api/consumidor/{idConta}")
@@ -19,23 +19,7 @@ public class ConsumidorController {
         this.pedidoService = pedidoService;
     }
 
-    // ---------- Perfil ----------
-
-    @GetMapping("/perfil")
-    public PerfilResponse perfil(@PathVariable Integer idConta) {
-        return consumidorService.perfil(idConta);
-    }
-
-    @PutMapping("/perfil")
-    public PerfilResponse atualizarPerfil(@PathVariable Integer idConta, @RequestBody PerfilRequest request) {
-        return consumidorService.atualizarPerfil(idConta, request);
-    }
-
-    @PutMapping("/senha")
-    @ResponseStatus(HttpStatus.NO_CONTENT)
-    public void trocarSenha(@PathVariable Integer idConta, @RequestBody SenhaRequest request) {
-        consumidorService.trocarSenha(idConta, request);
-    }
+    // Perfil e senha: /api/conta/{idConta}/perfil (ContaController).
 
     // ---------- Carrinho ----------
 

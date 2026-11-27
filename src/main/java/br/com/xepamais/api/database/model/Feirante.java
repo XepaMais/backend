@@ -36,6 +36,12 @@ public class Feirante {
     @Column(name = "matricula_feirante", length = 20, unique = true)
     private String matricula;
 
+    @Column(name = "validade_matricula", length = 20)
+    private String validadeMatricula;
+
+    @Column(name = "titular_feirante", length = 100)
+    private String titular;
+
     @Column(name = "grupo_comercio", length = 60)
     private String grupoComercio;
 

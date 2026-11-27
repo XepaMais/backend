@@ -11,4 +11,5 @@ public interface ContaRepository extends  JpaRepository<Conta, Integer>{
     List<Conta> findByAtivoTrue();
     java.util.Optional<Conta> findByEmailIgnoreCase(String email);
     boolean existsByEmailIgnoreCase(String email);
+    boolean existsByCpf(String cpf);
 }

@@ -52,6 +52,11 @@ EOF
   chmod 600 /etc/xepamais/api.env
 fi
 
+# Chave que assina o login das contas. Fixa = reiniciar a API não desloga ninguém.
+if ! grep -q '^AUTH_TOKEN_SECRET=' /etc/xepamais/api.env; then
+  echo "AUTH_TOKEN_SECRET=$(openssl rand -base64 48 | tr -dc 'A-Za-z0-9' | head -c 48)" >> /etc/xepamais/api.env
+fi
+
 echo ">> Usuário de serviço e pasta da aplicação"
 id xepamais >/dev/null 2>&1 || useradd --system --no-create-home --shell /usr/sbin/nologin xepamais
 mkdir -p /opt/xepamais

@@ -33,6 +33,13 @@ public class Conta{
     @Column(name = "telefone_conta")
     private String telefone;
 
+    // Endereço da foto (ex.: /api/imagens/12). Coluna criada por database/nuvem-fotos-perfil-chat.sql.
+    @Column(name = "foto_conta", length = 255)
+    private String foto;
+
+    @Column(name = "data_nascimento")
+    private java.time.LocalDate dataNascimento;
+
     private boolean ativo = true;
 
     @Column(name = "data_cadastro", insertable = false, updatable = false)

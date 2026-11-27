@@ -16,6 +16,9 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.web.context.WebApplicationContext;
+import br.com.xepamais.api.TokenDaRota;
+import br.com.xepamais.api.auth.ContaTokenService;
 
 import java.time.LocalTime;
 import java.util.HashSet;
@@ -38,7 +41,9 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @AutoConfigureMockMvc
 class ConsumidorControllerTest {
 
-    @Autowired MockMvc mvc;
+    @Autowired WebApplicationContext contexto;
+    @Autowired ContaTokenService tokens;
+    MockMvc mvc;
     @Autowired ContaRepository contaRepository;
     @Autowired FeiranteRepository feiranteRepository;
     @Autowired ConsumidorRepository consumidorRepository;
@@ -50,6 +55,7 @@ class ConsumidorControllerTest {
 
     @BeforeEach
     void preparar() {
+        mvc = TokenDaRota.mockMvc(contexto, tokens);
         Feira feira = new Feira();
         feira.setNome("Feira " + UUID.randomUUID().toString().substring(0, 6));
         feira.setEndereco("Rua Clélia");
@@ -166,7 +172,9 @@ class ConsumidorControllerTest {
 
         // Lado do feirante: vê a venda, a renda caiu no financeiro e confirma a retirada pelo código.
         String vendas = "/api/feirante/" + contaFeirante + "/pedidos";
-        mvc.perform(get(vendas)).andExpect(jsonPath("$[0].id").value(idPedido));
+        mvc.perform(get(vendas))
+                .andExpect(jsonPath("$[0].id").value(idPedido))
+                .andExpect(jsonPath("$[0].codigo").doesNotExist());
         mvc.perform(get("/api/financeiro/" + contaFeirante + "/rendas"))
                 .andExpect(jsonPath("$[0].valor").value(43.79));
         mvc.perform(post(vendas + "/" + idPedido + "/retirada").contentType(MediaType.APPLICATION_JSON)
@@ -194,7 +202,7 @@ class ConsumidorControllerTest {
 
     @Test
     void perfilDoConsumidor() throws Exception {
-        String perfil = "/api/consumidor/" + contaConsumidor + "/perfil";
+        String perfil = "/api/conta/" + contaConsumidor + "/perfil";
         mvc.perform(put(perfil).contentType(MediaType.APPLICATION_JSON)
                         .content("{\"nome\":\"Henrique Mazza\",\"telefone\":\"11988887777\"}"))
                 .andExpect(status().isOk());

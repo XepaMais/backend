@@ -2,6 +2,7 @@ package br.com.xepamais.api.xepa;
 
 import br.com.xepamais.api.database.model.*;
 import br.com.xepamais.api.database.repository.*;
+import br.com.xepamais.api.imagem.ImagemController;
 import br.com.xepamais.api.xepa.dto.XepaDtos.XepaRequest;
 import br.com.xepamais.api.xepa.dto.XepaDtos.XepaResponse;
 import org.springframework.http.HttpStatus;
@@ -123,10 +124,8 @@ public class XepaService {
         LocalTime fim = primeiro(request.horarioRetiradaFim(), feira.getHorarioFim(), FIM_PADRAO);
         if (!fim.isAfter(inicio)) throw invalido("O horário final da retirada deve ser depois do inicial.");
 
-        String imagem = request.imagem() == null ? null : request.imagem().trim();
-        if (imagem != null && (!imagem.startsWith("http") || imagem.length() > 255)) {
-            imagem = null; // Só guardamos endereços de imagem; fotos em base64 não cabem na coluna.
-        }
+        // Foto enviada antes em POST /api/imagens (ou um endereço http). Base64 direto não cabe na coluna.
+        String imagem = ImagemController.enderecoValido(request.imagem());
 
         Categoria categoria = categoriaRepository.findByNomeIgnoreCase(nomeCategoria).orElseGet(() -> {
             Categoria nova = new Categoria();
@@ -154,6 +153,7 @@ public class XepaService {
         xepa.setHorarioRetiradaInicio(inicio);
         xepa.setHorarioRetiradaFim(fim);
         xepa.setStatus("DISPONIVEL");
+        xepa.setDataCadastro(java.time.LocalDateTime.now(FUSO));
         return paraResposta(xepaRepository.save(xepa));
     }
 
@@ -180,7 +180,8 @@ public class XepaService {
                 xepa.getHorarioRetiradaInicio(), xepa.getHorarioRetiradaFim(), horario, xepa.getStatus(),
                 feira.getId(), feira.getNome(), localDaFeira(feira), feira.getCep(),
                 feira.getDias().stream().sorted().toList(), feira.getLatitude(), feira.getLongitude(),
-                feirante.getConta().getId(), feirante.getConta().getNome(), feirante.getNomeFantasia());
+                feirante.getConta().getId(), feirante.getConta().getNome(), feirante.getNomeFantasia(),
+                xepa.getDataCadastro());
     }
 
     public static String localDaFeira(Feira feira) {

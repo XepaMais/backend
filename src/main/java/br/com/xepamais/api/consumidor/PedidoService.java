@@ -5,7 +5,6 @@ import br.com.xepamais.api.database.model.*;
 import br.com.xepamais.api.database.repository.*;
 import br.com.xepamais.api.xepa.Categorias;
 import br.com.xepamais.api.xepa.XepaService;
-import jakarta.persistence.EntityManager;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -51,14 +50,14 @@ public class PedidoService {
     private final RendaRepository rendaRepository;
     private final OrigemRendaRepository origemRendaRepository;
     private final FeiranteRepository feiranteRepository;
-    private final EntityManager entityManager;
+    private final ChatRepository chatRepository;
 
     public PedidoService(ConsumidorService consumidorService, XepaRepository xepaRepository,
                          PedidoRepository pedidoRepository, ItemPedidoRepository itemPedidoRepository,
                          ItemCarrinhoRepository itemCarrinhoRepository, PagamentoRepository pagamentoRepository,
                          TipoPagamentoRepository tipoPagamentoRepository, RendaRepository rendaRepository,
                          OrigemRendaRepository origemRendaRepository, FeiranteRepository feiranteRepository,
-                         EntityManager entityManager) {
+                         ChatRepository chatRepository) {
         this.consumidorService = consumidorService;
         this.xepaRepository = xepaRepository;
         this.pedidoRepository = pedidoRepository;
@@ -69,7 +68,7 @@ public class PedidoService {
         this.rendaRepository = rendaRepository;
         this.origemRendaRepository = origemRendaRepository;
         this.feiranteRepository = feiranteRepository;
-        this.entityManager = entityManager;
+        this.chatRepository = chatRepository;
     }
 
     // ---------- Checkout ----------
@@ -138,6 +137,7 @@ public class PedidoService {
             pedido.setConsumidor(consumidor);
             pedido.setFeirante(feirante);
             pedido.setStatus("PAGO");
+            pedido.setDataPedido(LocalDateTime.now(XepaService.FUSO));
             pedido.setValorTotal(subtotal.add(taxaEntrega));
             pedido.setPercentualComissao(percentual);
             pedido.setValorComissao(comissao);
@@ -172,12 +172,18 @@ public class PedidoService {
             pagamentoRepository.save(pagamento);
 
             lancarNoFinanceiro(pedido, descricao, xepas.get(grupo.getValue().get(0)).getFeira());
+            // O feirante recebe o pedido no chat na hora (Recentes + notificação).
+            Chat chat = new Chat();
+            chat.setConsumidor(consumidor);
+            chat.setFeirante(feirante);
+            chat.setPedido(pedido);
+            chat.setDataInicio(pedido.getDataPedido());
+            chat.setLeituraConsumidor(pedido.getDataPedido());
+            chatRepository.save(chat);
             criados.add(pedido);
         }
 
         itemCarrinhoRepository.removerXepas(carrinho.getId(), pedidos.keySet());
-        entityManager.flush();
-        criados.forEach(entityManager::refresh); // traz a data do pedido gravada pelo banco
         return respostas(criados);
     }
 
@@ -275,7 +281,8 @@ public class PedidoService {
     @Transactional(readOnly = true)
     public List<PedidoResponse> vendasDoFeirante(Integer idConta) {
         Feirante feirante = feirante(idConta);
-        return respostas(pedidoRepository.findByFeirante_IdOrderByIdDesc(feirante.getId()));
+        return respostas(pedidoRepository.findByFeirante_IdOrderByIdDesc(feirante.getId())).stream()
+                .map(PedidoResponse::semCodigo).toList();
     }
 
     // O feirante confirma a retirada/entrega com o código que o consumidor mostra.
@@ -292,8 +299,19 @@ public class PedidoService {
         if (!codigo.equals(pedido.getCodigoRetirada())) {
             throw ConsumidorService.invalido("Código de retirada incorreto.");
         }
-        pedido.setStatus("RETIRADO");
-        return respostas(List.of(pedido)).get(0);
+        marcarRetirado(pedido);
+        return respostas(List.of(pedido)).get(0).semCodigo();
+    }
+
+    // Retirado/entregue: o pedido muda de status e a conversa dele vai para "Finalizadas".
+    public void marcarRetirado(Pedido pedido) {
+        if (!"CANCELADO".equals(pedido.getStatus())) pedido.setStatus("RETIRADO");
+        chatRepository.findByPedido_Id(pedido.getId()).ifPresent(chat -> {
+            if (!"FINALIZADA".equals(chat.getStatus())) {
+                chat.setStatus("FINALIZADA");
+                chat.setDataFinalizacao(LocalDateTime.now(XepaService.FUSO));
+            }
+        });
     }
 
     // ---------- Auxiliares ----------
@@ -309,12 +327,16 @@ public class PedidoService {
                 .collect(Collectors.groupingBy(i -> i.getPedido().getId(), LinkedHashMap::new, Collectors.toList()));
     }
 
-    private List<PedidoResponse> respostas(List<Pedido> pedidos) {
+    public List<PedidoResponse> respostas(List<Pedido> pedidos) {
+        if (pedidos.isEmpty()) return List.of();
         Map<Integer, List<ItemPedido>> itens = itensPorPedido(pedidos);
-        return pedidos.stream().map(p -> resposta(p, itens.getOrDefault(p.getId(), List.of()))).toList();
+        Map<Integer, Integer> conversas = chatRepository.findByPedido_IdIn(pedidos.stream().map(Pedido::getId).toList())
+                .stream().collect(Collectors.toMap(c -> c.getPedido().getId(), Chat::getId, (a, b) -> a));
+        return pedidos.stream()
+                .map(p -> resposta(p, itens.getOrDefault(p.getId(), List.of()), conversas.get(p.getId()))).toList();
     }
 
-    private static PedidoResponse resposta(Pedido pedido, List<ItemPedido> itens) {
+    private static PedidoResponse resposta(Pedido pedido, List<ItemPedido> itens, Integer idConversa) {
         Feirante feirante = pedido.getFeirante();
         List<ItemPedidoResponse> itensResposta = itens.stream().map(item -> {
             Xepa xepa = item.getXepa();
@@ -331,7 +353,7 @@ public class PedidoService {
         return new PedidoResponse(pedido.getId(), numero(pedido), pedido.getDataPedido(), statusDoApp(pedido.getStatus()),
                 pedido.getStatus(), pedido.getCodigoRetirada(), pedido.getValorTotal().subtract(taxa), taxa,
                 pedido.getValorTotal(), feirante.getConta().getId(), feirante.getNomeFantasia(),
-                pedido.getConsumidor().getConta().getNome(), recebimento, itensResposta);
+                pedido.getConsumidor().getConta().getNome(), recebimento, itensResposta, idConversa);
     }
 
     static String numero(Pedido pedido) {

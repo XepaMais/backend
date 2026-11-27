@@ -23,14 +23,16 @@ public class AuthService {
     private final ConsumidorRepository consumidorRepository;
     private final FeiranteRepository feiranteRepository;
     private final PasswordHasher passwordHasher;
+    private final ContaTokenService contaTokenService;
 
     public AuthService(ContaRepository contaRepository, ConsumidorRepository consumidorRepository,
                        FeiranteRepository feiranteRepository,
-                       PasswordHasher passwordHasher) {
+                       PasswordHasher passwordHasher, ContaTokenService contaTokenService) {
         this.contaRepository = contaRepository;
         this.consumidorRepository = consumidorRepository;
         this.feiranteRepository = feiranteRepository;
         this.passwordHasher = passwordHasher;
+        this.contaTokenService = contaTokenService;
     }
 
     @Transactional
@@ -152,6 +154,7 @@ public class AuthService {
     }
 
     private ContaResponse response(Conta conta, String tipo) {
-        return new ContaResponse(conta.getId(), conta.getNome(), conta.getEmail(), tipo);
+        return new ContaResponse(conta.getId(), conta.getNome(), conta.getEmail(), tipo,
+                contaTokenService.gerar(conta.getId()));
     }
 }

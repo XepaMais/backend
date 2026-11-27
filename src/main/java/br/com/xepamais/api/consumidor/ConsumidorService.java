@@ -1,6 +1,5 @@
 package br.com.xepamais.api.consumidor;
 
-import br.com.xepamais.api.auth.PasswordHasher;
 import br.com.xepamais.api.consumidor.dto.ConsumidorDtos.*;
 import br.com.xepamais.api.database.model.*;
 import br.com.xepamais.api.database.repository.*;
@@ -15,88 +14,30 @@ import java.math.RoundingMode;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
-import java.util.Locale;
 import java.util.Map;
-import java.util.regex.Pattern;
 
-// Perfil e carrinho do consumidor. {idConta} é o "id" devolvido pelo login.
+// Carrinho do consumidor. {idConta} é o "id" devolvido pelo login.
 @Service
 public class ConsumidorService {
-    private static final Pattern EMAIL = Pattern.compile("^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$");
     private static final BigDecimal QUANTIDADE_MAXIMA = new BigDecimal("9999");
 
     private final ConsumidorRepository consumidorRepository;
-    private final ContaRepository contaRepository;
     private final CarrinhoRepository carrinhoRepository;
     private final ItemCarrinhoRepository itemCarrinhoRepository;
     private final XepaRepository xepaRepository;
-    private final PasswordHasher passwordHasher;
 
-    public ConsumidorService(ConsumidorRepository consumidorRepository, ContaRepository contaRepository,
-                             CarrinhoRepository carrinhoRepository, ItemCarrinhoRepository itemCarrinhoRepository,
-                             XepaRepository xepaRepository, PasswordHasher passwordHasher) {
+    public ConsumidorService(ConsumidorRepository consumidorRepository, CarrinhoRepository carrinhoRepository,
+                             ItemCarrinhoRepository itemCarrinhoRepository, XepaRepository xepaRepository) {
         this.consumidorRepository = consumidorRepository;
-        this.contaRepository = contaRepository;
         this.carrinhoRepository = carrinhoRepository;
         this.itemCarrinhoRepository = itemCarrinhoRepository;
         this.xepaRepository = xepaRepository;
-        this.passwordHasher = passwordHasher;
     }
 
     public Consumidor consumidor(Integer idConta) {
         return consumidorRepository.findByConta_Id(idConta)
                 .filter(c -> c.getConta().isAtivo())
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Consumidor não encontrado."));
-    }
-
-    // ---------- Perfil ----------
-
-    @Transactional(readOnly = true)
-    public PerfilResponse perfil(Integer idConta) {
-        return perfil(consumidor(idConta).getConta());
-    }
-
-    @Transactional
-    public PerfilResponse atualizarPerfil(Integer idConta, PerfilRequest request) {
-        Conta conta = consumidor(idConta).getConta();
-        if (request == null) throw invalido("Informe os dados do perfil.");
-        if (request.nome() != null) {
-            String nome = request.nome().trim();
-            if (nome.isEmpty() || nome.length() > 100) throw invalido("Informe um nome de até 100 caracteres.");
-            conta.setNome(nome);
-        }
-        if (request.telefone() != null) {
-            String telefone = request.telefone().trim();
-            if (telefone.isEmpty() || telefone.length() > 20) throw invalido("Informe um telefone válido.");
-            conta.setTelefone(telefone);
-        }
-        if (request.email() != null) {
-            String email = request.email().trim().toLowerCase(Locale.ROOT);
-            if (!EMAIL.matcher(email).matches() || email.length() > 100) throw invalido("Informe um email válido.");
-            if (!email.equalsIgnoreCase(conta.getEmail()) && contaRepository.existsByEmailIgnoreCase(email)) {
-                throw new ResponseStatusException(HttpStatus.CONFLICT, "Este email já está cadastrado.");
-            }
-            conta.setEmail(email);
-        }
-        return perfil(conta);
-    }
-
-    @Transactional
-    public void trocarSenha(Integer idConta, SenhaRequest request) {
-        Conta conta = consumidor(idConta).getConta();
-        if (request == null || request.senhaAtual() == null || request.novaSenha() == null) {
-            throw invalido("Informe a senha atual e a nova senha.");
-        }
-        if (!passwordHasher.matches(request.senhaAtual(), conta.getSenha())) {
-            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "A senha atual está incorreta.");
-        }
-        if (request.novaSenha().length() < 8) throw invalido("A nova senha deve ter pelo menos 8 caracteres.");
-        conta.setSenha(passwordHasher.hash(request.novaSenha()));
-    }
-
-    private PerfilResponse perfil(Conta conta) {
-        return new PerfilResponse(conta.getId(), conta.getNome(), conta.getEmail(), conta.getCpf(),
-                conta.getTelefone(), conta.getDataCadastro());
     }
 
     // ---------- Carrinho ----------

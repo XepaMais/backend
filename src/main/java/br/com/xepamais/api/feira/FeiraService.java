@@ -29,12 +29,31 @@ public class FeiraService {
         this.feiranteRepository = feiranteRepository;
     }
 
-    // Todas as feiras cadastradas.
+    // Todas as feiras cadastradas, em ordem de nome (mapa geral do consumidor).
     @Transactional(readOnly = true)
     public List<FeiraResponse> listar() {
         return feiraRepository.findAll().stream()
+                .sorted(Comparator.comparing(feira -> semAcento(feira.getNome())))
                 .map(this::response)
                 .toList();
+    }
+
+    // Busca pelo nome: "lapa" acha "Feira Livre da Lapa". Quem começa com o termo vem primeiro.
+    @Transactional(readOnly = true)
+    public List<FeiraResponse> buscarPorNome(String busca) {
+        String termo = semAcento(busca);
+        return feiraRepository.findAll().stream()
+                .filter(feira -> semAcento(feira.getNome()).contains(termo))
+                .sorted(Comparator.comparing((Feira feira) -> !semAcento(feira.getNome()).startsWith(termo))
+                        .thenComparing(feira -> semAcento(feira.getNome())))
+                .map(this::response)
+                .toList();
+    }
+
+    private static String semAcento(String texto) {
+        if (texto == null) return "";
+        return java.text.Normalizer.normalize(texto, java.text.Normalizer.Form.NFD)
+                .replaceAll("\\p{M}", "").toLowerCase(Locale.ROOT).trim();
     }
 
     // Feiras a até "raioKm" do ponto (lat, lng), da mais perto para a mais longe.

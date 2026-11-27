@@ -20,10 +20,11 @@ public class FeiraController {
         this.service = service;
     }
 
-    // GET /api/feiras → todas as feiras
+    // GET /api/feiras → todas as feiras (mapa geral)
+    // GET /api/feiras?busca=lapa → só as que têm "lapa" no nome (sem diferença de acento/maiúscula)
     @GetMapping
-    public List<FeiraResponse> listar() {
-        return service.listar();
+    public List<FeiraResponse> listar(@RequestParam(required = false) String busca) {
+        return busca == null || busca.isBlank() ? service.listar() : service.buscarPorNome(busca);
     }
 
     // GET /api/feiras/proximas?lat=-23.52&lng=-46.69&raioKm=10 → feiras perto do usuário

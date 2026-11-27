@@ -7,7 +7,7 @@
 
 <div align="center">
 
-# Xepa+ API
+# API
 
 **API REST do Xepa+: liga o site dos feirantes e consumidores ao banco de dados.**
 
@@ -156,29 +156,6 @@ A lista completa (84 endpoints, com exemplos) está no **[Swagger](https://xepam
 - A pessoa pode baixar todos os seus dados: `GET /api/conta/{id}/dados`.
 - A exclusão (`DELETE /api/conta/{id}`) apaga os dados pessoais e desconecta todos os aparelhos. Os pedidos ficam guardados sem identificar a pessoa.
 
-## Rodar localmente
-
-Precisa de Java 17 e MySQL 8 com o banco criado pelos scripts do [repositório database](https://github.com/XepaMais/database).
-
-```powershell
-$env:DB_URL = "jdbc:mysql://localhost:3306/db_xepa?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=America/Sao_Paulo"
-$env:DB_USER = "root"
-$env:DB_PASSWORD = "SUA_SENHA"
-.\mvnw.cmd spring-boot:run
-```
-
-Swagger local: http://localhost:8080/api/docs
-
-| Variável | Obrigatória | Para que serve |
-| --- | --- | --- |
-| `DB_URL` / `DB_USER` / `DB_PASSWORD` | sim | Conexão com o MySQL |
-| `AUTH_TOKEN_SECRET` | em produção | Chave do token. Vazia = sorteada ao iniciar (reiniciar desloga todos) |
-| `GEMINI_API_KEY` | não | Sem chave, a Xepinha fica indisponível |
-| `ADMIN_EMAIL` / `ADMIN_SENHA_HASH` | não | Sem eles, o painel admin fica desligado |
-| `APP_CORS_ALLOWED_ORIGINS` | não | Sites que podem chamar a API |
-| `SERVER_PORT` | não | Porta (padrão `8080`) |
-
-**Conta de teste** (com o seed de demonstração): `antonio.nakamura@demo.xepamais.com.br` / `XepaDemo@2026`.
 
 ## Testes
 

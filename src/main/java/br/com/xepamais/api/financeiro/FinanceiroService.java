@@ -56,7 +56,7 @@ public class FinanceiroService {
         this.categoriaDespesaRepository = categoriaDespesaRepository;
     }
 
-    // ==================== Categorias ====================
+    //  Categorias 
 
     @Transactional(readOnly = true)
     public List<String> origensRenda() {
@@ -72,7 +72,7 @@ public class FinanceiroService {
                 .map(CategoriaDespesa::getNome).toList();
     }
 
-    // ==================== Rendas (lucros) ====================
+    //  Rendas (lucros) 
 
     @Transactional(readOnly = true)
     public List<RendaResponse> listarRendas(Integer idConta, LocalDate inicio, LocalDate fim) {
@@ -130,7 +130,7 @@ public class FinanceiroService {
                 renda.getPedido() == null ? null : renda.getPedido().getId());
     }
 
-    // ==================== Despesas (gastos) ====================
+    //  Despesas (gastos) 
 
     @Transactional(readOnly = true)
     public List<DespesaResponse> listarDespesas(Integer idConta, LocalDate inicio, LocalDate fim) {
@@ -195,7 +195,7 @@ public class FinanceiroService {
                 nomeFeira(despesa.getFeira()), despesa.getPedido() == null ? null : despesa.getPedido().getId());
     }
 
-    // ==================== Saques ====================
+    //  Saques 
 
     @Transactional(readOnly = true)
     public SaldoResponse saldo(Integer idConta) {
@@ -261,7 +261,7 @@ public class FinanceiroService {
                 saque.getChavePix(), saque.getStatus(), saque.getDataSolicitacao());
     }
 
-    // ==================== Resumo e planilha ====================
+    //  Resumo e planilha 
 
     @Transactional(readOnly = true)
     public ResumoResponse resumo(Integer idConta) {
@@ -338,7 +338,7 @@ public class FinanceiroService {
         return feirante.getConta().getNome();
     }
 
-    // ==================== Apoio ====================
+    //  Apoio 
 
     private Feirante feirante(Integer idConta) {
         if (idConta == null) throw erro(HttpStatus.BAD_REQUEST, "Conta não informada.");

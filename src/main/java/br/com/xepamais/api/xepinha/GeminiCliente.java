@@ -14,8 +14,7 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 
-// Chama a API do Gemini (Google) pelo servidor: a chave fica só em GEMINI_API_KEY na EC2,
-// nunca no navegador. Tenta de novo em 503/429 e, se continuar, usa o modelo reserva.
+// Chama a API do Gemini (Google) pelo servido, a chave fica só em GEMINI_API_KEY na EC2
 @Component
 public class GeminiCliente implements ClienteIa {
     private static final Logger log = LoggerFactory.getLogger(GeminiCliente.class);

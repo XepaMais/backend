@@ -4,7 +4,6 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 
-// O front usa 4 categorias de xepa; o banco (tb_categoria) tem as categorias de produto.
 public final class Categorias {
     private Categorias() {}
 

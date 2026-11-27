@@ -19,8 +19,7 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 // Fotos das xepas e dos perfis, guardadas no banco (valem em qualquer aparelho).
-// Envio: POST /api/imagens {"dataUrl":"data:image/jpeg;base64,..."} (precisa estar logado).
-// Uso: o "url" devolvido (/api/imagens/{id}) vai na xepa ("imagem") ou no perfil ("foto").
+
 @RestController
 @io.swagger.v3.oas.annotations.tags.Tag(name = "Imagens", description = "Envio e leitura de fotos")
 @RequestMapping("/api/imagens")

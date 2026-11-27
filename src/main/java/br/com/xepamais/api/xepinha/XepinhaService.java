@@ -80,7 +80,7 @@ public class XepinhaService {
         this.instrucoes = recurso("xepinha/persona.md") + "\n\n## BASE DE CONHECIMENTO\n" + recurso("xepinha/base-conhecimento.md");
     }
 
-    // ---------- Feirante logado ----------
+    //  Feirante logado 
 
     public List<ConversaResponse> conversas(Integer idConta) {
         return transacao.execute(status -> {
@@ -121,7 +121,7 @@ public class XepinhaService {
         });
     }
 
-    // ---------- Modo demonstração (sem login, nada é salvo) ----------
+    //  Modo demonstração (sem login, nada é salvo) 
 
     public RespostaDemo perguntarDemo(PerguntaDemoRequest request, String ip) {
         String texto = texto(request == null ? null : request.texto());
@@ -136,7 +136,7 @@ public class XepinhaService {
         return new RespostaDemo(chamarIa(historico, texto));
     }
 
-    // ---------- Auxiliares ----------
+    //  Auxiliares 
 
     private String chamarIa(List<Turno> historico, String texto) {
         try {

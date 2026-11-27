@@ -15,7 +15,7 @@ import java.util.List;
 import java.util.Map;
 
 // Financeiro do feirante: lucros (rendas), despesas, saques via Pix, resumo e planilha.
-// {idConta} é o "id" devolvido pelo login.
+
 @RestController
 @io.swagger.v3.oas.annotations.tags.Tag(name = "Financeiro", description = "Lucros, despesas, saques, resumo e planilha do feirante")
 @RequestMapping("/api/financeiro")
@@ -31,7 +31,7 @@ public class FinanceiroController {
         return Map.of("origensRenda", service.origensRenda(), "categoriasDespesa", service.categoriasDespesa());
     }
 
-    // ---------- Rendas ----------
+    //  Rendas 
 
     @GetMapping("/{idConta}/rendas")
     public List<RendaResponse> listarRendas(@PathVariable Integer idConta,
@@ -58,7 +58,7 @@ public class FinanceiroController {
         service.excluirRenda(idConta, id);
     }
 
-    // ---------- Despesas ----------
+    //  Despesas 
 
     @GetMapping("/{idConta}/despesas")
     public List<DespesaResponse> listarDespesas(@PathVariable Integer idConta,
@@ -85,7 +85,7 @@ public class FinanceiroController {
         service.excluirDespesa(idConta, id);
     }
 
-    // ---------- Saques ----------
+    //  Saques 
 
     @GetMapping("/{idConta}/saldo")
     public SaldoResponse saldo(@PathVariable Integer idConta) {
@@ -103,7 +103,7 @@ public class FinanceiroController {
         return service.sacar(idConta, request);
     }
 
-    // ---------- Resumo e planilha ----------
+    //  Resumo e planilha 
 
     @GetMapping("/{idConta}/resumo")
     public ResumoResponse resumo(@PathVariable Integer idConta) {

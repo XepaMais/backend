@@ -60,7 +60,7 @@ public class XepaService {
                 && (xepa.getValidade() == null || !xepa.getValidade().isBefore(hoje()));
     }
 
-    // ---------- Vitrine do consumidor ----------
+    //  Vitrine do consumidor 
 
     @Transactional(readOnly = true)
     public List<XepaResponse> listarDisponiveis(String categoria, Integer idFeira, String busca) {
@@ -87,7 +87,7 @@ public class XepaService {
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Xepa não encontrada."));
     }
 
-    // ---------- Xepas do feirante ----------
+    //  Xepas do feirante 
 
     @Transactional(readOnly = true)
     public List<XepaResponse> listarDoFeirante(Integer idConta) {
@@ -217,7 +217,7 @@ public class XepaService {
         xepa.setStatus("CANCELADA");
     }
 
-    // ---------- Auxiliares ----------
+    //  Auxiliares 
 
     public static XepaResponse paraResposta(Xepa xepa) {
         Produto produto = xepa.getProduto();

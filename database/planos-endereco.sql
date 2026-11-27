@@ -1,7 +1,5 @@
 -- Planos do feirante e endereço de entrega do consumidor.
--- NÃO é obrigatório rodar: a API faz estas mesmas mudanças sozinha ao iniciar
--- (config/AtualizacaoBanco.java + plano/PlanosIniciais.java). Fica aqui como referência
--- ou para quem preferir aplicar à mão. Rode só uma vez.
+
 USE db_xepa;
 
 -- Planos: código igual ao do front e planos padrão sem colaborador.

@@ -4,9 +4,7 @@ server:
 spring:
   web:
     error:
-      # Devolve o motivo dos erros (ex.: "Email ou senha inválidos.") no campo "message",
-      # que o front-end mostra ao usuário. Sem isso o Spring esconde o texto.
-      include-message: always
+      # Devolve o motivo dos erros (ex.: "Email ou senha inválidos.") no campo "message"
   datasource:
     url: ${DB_URL}
     username: ${DB_USER}
@@ -18,31 +16,23 @@ spring:
 
 app:
   auth:
-    # Assina o token das contas (consumidor/feirante). Em produção defina AUTH_TOKEN_SECRET
-    # em /etc/xepamais/api.env; vazio = sorteado a cada início (reiniciar a API desloga todos).
+    # Assina o token das contas 
     token-secret: ${AUTH_TOKEN_SECRET:}
   ia:
-    # Chave da API do Gemini (Xepinha). Só no servidor: em produção defina GEMINI_API_KEY em
-    # /etc/xepamais/api.env. Vazia = a Xepinha responde que está indisponível.
+    # Chave da API do Gemini (Xepinha)
     gemini-api-key: ${GEMINI_API_KEY:}
     modelos: ${GEMINI_MODELOS:gemini-3.5-flash-lite,gemini-3.1-flash-lite}
   cors:
-    # Lista separada por vírgula. Na EC2 vem de APP_CORS_ALLOWED_ORIGINS (/etc/xepamais/api.env).
     allowed-origins: ${APP_CORS_ALLOWED_ORIGINS:https://www.xepamais.com.br,https://xepamais.com.br,https://xepa-mais.vercel.app,http://localhost:5173}
   admin:
-    # Login do painel /admin. A senha fica só como hash PBKDF2 (igual às contas).
-    # Sem valor padrão de propósito: defina ADMIN_EMAIL e ADMIN_SENHA_HASH em /etc/xepamais/api.env
-    # (ou nas variáveis de ambiente locais). Vazios = painel admin desligado.
     email: ${ADMIN_EMAIL:}
     senha-hash: ${ADMIN_SENHA_HASH:}
-    # Chave que assina o token do admin. Vazia = sorteada a cada início da API.
     token-secret: ${ADMIN_TOKEN_SECRET:}
   lgpd:
     # Versão dos Termos de Uso / Política de Privacidade gravada no aceite de cada conta.
-    # Ao mudar os termos, aumente a versão (e a data mostrada nas páginas do site).
     versao-termos: ${LGPD_VERSAO_TERMOS:1.0}
 
-# Documentação da API: https://xepamais.com.br/api/docs (fica em /api para passar pelo proxy da Vercel).
+# Documentação da API: https://xepamais.com.br/api/docs 
 springdoc:
   api-docs:
     path: /api/docs/openapi

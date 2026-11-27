@@ -1,4 +1,4 @@
--- Feiras de exemplo para o mapa, só adiciona linhas: não altera nenhuma tabela.
+-- Feiras de exemplo para o mapa, só adiciona linhas e não altera nenhuma tabela
 USE db_xepa;
 
 INSERT INTO tb_feira (nome_feira, endereco_feira, numero_feira, cep_feira, cidade_feira, uf_feira,

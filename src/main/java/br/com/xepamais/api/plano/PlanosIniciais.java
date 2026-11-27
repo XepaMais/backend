@@ -12,8 +12,6 @@ import org.springframework.transaction.annotation.Transactional;
 import java.math.BigDecimal;
 import java.util.List;
 
-// Garante os 3 planos do Xepa+ no banco (os mesmos de compartilhado/dados/planos.js no front).
-// Roda depois de AtualizacaoBanco (que cria a coluna codigo_plano). Se o plano já existe, não mexe.
 @Component
 @Order(Ordered.HIGHEST_PRECEDENCE + 10)
 public class PlanosIniciais implements ApplicationRunner {

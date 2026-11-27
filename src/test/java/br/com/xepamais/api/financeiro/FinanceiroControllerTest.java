@@ -15,6 +15,9 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.web.context.WebApplicationContext;
+import br.com.xepamais.api.TokenDaRota;
+import br.com.xepamais.api.auth.ContaTokenService;
 
 import java.time.LocalDate;
 import java.time.ZoneId;
@@ -38,7 +41,9 @@ class FinanceiroControllerTest {
 
     private static final String HOJE = LocalDate.now(ZoneId.of("America/Sao_Paulo")).toString();
 
-    @Autowired MockMvc mvc;
+    @Autowired WebApplicationContext contexto;
+    @Autowired ContaTokenService tokens;
+    MockMvc mvc;
     @Autowired ContaRepository contaRepository;
     @Autowired FeiranteRepository feiranteRepository;
     @Autowired OrigemRendaRepository origemRendaRepository;
@@ -48,6 +53,7 @@ class FinanceiroControllerTest {
 
     @BeforeEach
     void prepararFeirante() {
+        mvc = TokenDaRota.mockMvc(contexto, tokens);
         if (origemRendaRepository.count() == 0) {
             for (String nome : List.of("Venda na feira", "Venda de xepa pelo Xepa+", "Encomenda",
                     "Entrega em domicílio", "Venda para comércio", "Outros")) {

@@ -10,16 +10,6 @@ import java.util.List;
 public final class ConsumidorDtos {
     private ConsumidorDtos() {}
 
-    // ---------- Perfil ----------
-
-    public record PerfilResponse(Integer id, String nome, String email, String cpf, String telefone,
-                                 LocalDateTime dataCadastro) {}
-
-    // Campos nulos ficam como estão. O CPF não muda depois do cadastro.
-    public record PerfilRequest(String nome, String email, String telefone) {}
-
-    public record SenhaRequest(String senhaAtual, String novaSenha) {}
-
     // ---------- Carrinho ----------
 
     // id = id da xepa (o front usa o id da xepa como id do item).
@@ -61,10 +51,18 @@ public final class ConsumidorDtos {
 
     // status: texto que o front mostra ("Pendente de retirada", "Retirado", "Cancelado").
     // situacao: valor salvo no banco (PAGO, PRONTO_RETIRADA, RETIRADO...).
+    // idConversa: chat do pedido (aberto no checkout).
     public record PedidoResponse(Integer id, String numero, LocalDateTime data, String status, String situacao,
                                  String codigo, BigDecimal subtotal, BigDecimal taxaEntrega, BigDecimal total,
                                  Integer idFeirante, String barraca, String consumidor,
-                                 RecebimentoResponse recebimento, List<ItemPedidoResponse> itens) {}
+                                 RecebimentoResponse recebimento, List<ItemPedidoResponse> itens,
+                                 Integer idConversa) {
+        // Para o feirante: o código fica só com o consumidor (é ele quem mostra na retirada).
+        public PedidoResponse semCodigo() {
+            return new PedidoResponse(id, numero, data, status, situacao, null, subtotal, taxaEntrega, total,
+                    idFeirante, barraca, consumidor, recebimento, itens, idConversa);
+        }
+    }
 
     public record RetiradaRequest(String codigo) {}
 

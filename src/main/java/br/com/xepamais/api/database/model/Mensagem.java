@@ -3,6 +3,8 @@ package br.com.xepamais.api.database.model;
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
+import org.hibernate.annotations.ColumnDefault;
+
 import java.time.LocalDateTime;
 
 @Entity
@@ -20,6 +22,7 @@ public class Mensagem {
     @JoinColumn(name = "id_chat", nullable = false)
     private Chat chat;
 
+    // Quem enviou (consumidor ou feirante do chat).
     @ManyToOne
     @JoinColumn(name = "id_conta", nullable = false)
     private Conta conta;
@@ -27,7 +30,9 @@ public class Mensagem {
     @Column(name = "texto_mensagem", nullable = false, columnDefinition = "TEXT")
     private String texto;
 
-    @Column(name = "data_envio", nullable = false, insertable = false, updatable = false)
+    // Preenchida pela API no fuso de São Paulo (o front compara com as leituras).
+    @ColumnDefault("CURRENT_TIMESTAMP")
+    @Column(name = "data_envio", nullable = false, updatable = false)
     private LocalDateTime dataEnvio;
 
     @Column(nullable = false)

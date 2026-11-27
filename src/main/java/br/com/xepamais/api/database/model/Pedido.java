@@ -27,7 +27,7 @@ public class Pedido {
     private Feirante feirante;
 
     @ColumnDefault("CURRENT_TIMESTAMP")
-    @Column(name = "data_pedido", nullable = false, insertable = false, updatable = false)
+    @Column(name = "data_pedido", nullable = false, updatable = false)
     private LocalDateTime dataPedido;
 
     @Column(name = "status_pedido", nullable = false, length = 30)

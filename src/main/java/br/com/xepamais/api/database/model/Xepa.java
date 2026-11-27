@@ -50,7 +50,7 @@ public class Xepa {
     private String status;
 
     @ColumnDefault("CURRENT_TIMESTAMP")
-    @Column(name = "data_cadastro", insertable = false, updatable = false)
+    @Column(name = "data_cadastro", updatable = false)
     private LocalDateTime dataCadastro;
 
     @Version

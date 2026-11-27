@@ -16,7 +16,8 @@ public final class XepaDtos {
                                LocalTime horarioRetiradaInicio, LocalTime horarioRetiradaFim, String horario,
                                String status, Integer idFeira, String feira, String local, String cep,
                                List<Integer> dias, BigDecimal latitude, BigDecimal longitude,
-                               Integer idFeirante, String feirante, String barraca) {}
+                               Integer idFeirante, String feirante, String barraca,
+                               java.time.LocalDateTime dataCadastro) {}
 
     // Cadastro da xepa pelo feirante. categoria: "Verduras e legumes", "Frutas", "Tempero" ou "Completa".
     // itens = o que vem na xepa; imagem = endereço (URL) da foto, opcional.

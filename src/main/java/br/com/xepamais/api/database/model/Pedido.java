@@ -1,6 +1,8 @@
 package br.com.xepamais.api.database.model;
 
 import jakarta.persistence.*;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 import org.hibernate.annotations.ColumnDefault;
 import lombok.Getter;
 import lombok.Setter;
@@ -43,7 +45,8 @@ public class Pedido {
     @Column(name = "valor_comissao", nullable = false, precision = 10, scale = 2)
     private BigDecimal valorComissao = BigDecimal.ZERO;
 
-    @Column(name = "codigo_retirada", length = 6)
+    @Column(name = "codigo_retirada", length = 4)
+    @JdbcTypeCode(SqlTypes.CHAR) // CHAR(4) no MySQL: código de 4 dígitos
     private String codigoRetirada;
 
     // RETIRADA (na feira) ou ENTREGA (em casa). Colunas criadas por database/pedido-recebimento.sql.

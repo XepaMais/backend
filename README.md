@@ -112,10 +112,10 @@ O cadastro de feirante também recebe `nomeFantasia`, `cnpj`, `ccm`, `matricula`
 ### Pré-requisitos
 
 - Java 17
-- MySQL em execução e banco `db_xepa` já criado
-- Tabelas do banco criadas previamente
+- MySQL 8 em execução (porta padrão `3306`)
+- Banco `db_xepa` criado com o script do repositório `database` (`xepaDB(1.0) (1).sql`). Na pasta `Xepa`, o `configurar-banco-local.ps1` faz isso e gera o `local.env` com as credenciais
 
-O Hibernate está configurado com `ddl-auto: none`, então a aplicação não cria nem altera as tabelas automaticamente.
+O Hibernate está configurado com `ddl-auto: none`. As tabelas e colunas novas que faltarem no banco são criadas ao iniciar pela classe `config/AtualizacaoBanco.java`, que confere antes o que já existe.
 
 ### Variáveis de ambiente
 
@@ -123,7 +123,7 @@ Configure estas variáveis na configuração de execução do IntelliJ ou no ter
 
 | Variável | Exemplo local |
 | --- | --- |
-| `DB_URL` | `jdbc:mysql://localhost:3307/db_xepa` |
+| `DB_URL` | `jdbc:mysql://localhost:3306/db_xepa?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=America/Sao_Paulo` |
 | `DB_USER` | `root` |
 | `DB_PASSWORD` | senha configurada no seu MySQL |
 
@@ -138,7 +138,7 @@ Abra a configuração `ApiApplication`, preencha as variáveis de ambiente e exe
 Na pasta deste projeto, configure as variáveis para a sessão atual e inicie o Spring Boot:
 
 ```powershell
-$env:DB_URL = "jdbc:mysql://localhost:3307/db_xepa"
+$env:DB_URL = "jdbc:mysql://localhost:3306/db_xepa?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=America/Sao_Paulo"
 $env:DB_USER = "root"
 $env:DB_PASSWORD = "SUA_SENHA"
 .\mvnw.cmd spring-boot:run

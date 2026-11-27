@@ -1,6 +1,8 @@
 package br.com.xepamais.api.database.model;
 
 import jakarta.persistence.*;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 import lombok.Getter;
 import lombok.Setter;
 
@@ -18,19 +20,20 @@ public class Conta{
     @Column(name = "id_conta")
     private Integer id;
 
-    @Column(name = "nome_conta")
+    @Column(name = "nome_conta", length = 100)
     private String nome;
 
-    @Column(name = "cpf_conta")
+    @Column(name = "cpf_conta", length = 11)
+    @JdbcTypeCode(SqlTypes.CHAR) // CHAR(11) no MySQL
     private String cpf;
 
-    @Column(name = "email_conta")
+    @Column(name = "email_conta", length = 100)
     private String email;
 
     @Column(name= "senha_conta")
     private String senha;
 
-    @Column(name = "telefone_conta")
+    @Column(name = "telefone_conta", length = 20)
     private String telefone;
 
     // Endereço da foto (ex.: /api/imagens/12). Coluna criada por database/nuvem-fotos-perfil-chat.sql.

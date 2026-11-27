@@ -1,5 +1,7 @@
 -- Área do consumidor: guarda no pedido como a xepa vai chegar (retirada na feira ou entrega em casa).
--- Rode UMA vez no banco (local e na EC2) antes de subir a nova versão da API.
+-- NÃO é obrigatório rodar: a API faz estas mesmas mudanças sozinha ao iniciar (config/AtualizacaoBanco.java).
+-- Não rode em banco criado pelo script novo do time (xepaDB(1.0) (1).sql): ele já tem estas
+-- colunas e o MySQL acusa "Duplicate column". Fica aqui como referência.
 USE db_xepa;
 
 ALTER TABLE tb_pedido

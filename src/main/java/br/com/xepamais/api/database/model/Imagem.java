@@ -28,7 +28,7 @@ public class Imagem {
 
     @Lob
     @Basic(fetch = FetchType.LAZY)
-    @Column(name = "dados_imagem", nullable = false)
+    @Column(name = "dados_imagem", nullable = false, length = 16777215) // MEDIUMBLOB no MySQL (até 16 MB)
     private byte[] dados;
 
     @ColumnDefault("CURRENT_TIMESTAMP")

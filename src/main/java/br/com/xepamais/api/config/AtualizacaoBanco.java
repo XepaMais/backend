@@ -130,6 +130,12 @@ public class AtualizacaoBanco implements ApplicationRunner {
         coluna("tb_conta", "foto_conta", "VARCHAR(255) NULL");
         coluna("tb_conta", "data_nascimento", "DATE NULL");
         coluna("tb_feirante", "validade_matricula", "VARCHAR(20) NULL");
+        // O script base do time cria a validade como DATE, mas o front envia texto livre
+        // (ex.: "31/03/2027"): com DATE, salvar o perfil do feirante dá "Incorrect date value".
+        if ("date".equals(tipoColuna("tb_feirante", "validade_matricula"))) {
+            executar("tb_feirante.validade_matricula como texto",
+                    "ALTER TABLE tb_feirante MODIFY validade_matricula VARCHAR(20) NULL");
+        }
         coluna("tb_feirante", "titular_feirante", "VARCHAR(100) NULL");
 
         // Chat: uma conversa por pedido (ou dúvida sobre uma xepa).
@@ -180,6 +186,12 @@ public class AtualizacaoBanco implements ApplicationRunner {
     private boolean existeColuna(String tabela, String coluna) {
         return contar("SELECT COUNT(*) FROM information_schema.COLUMNS "
                 + "WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ? AND COLUMN_NAME = ?", tabela, coluna) > 0;
+    }
+
+    private String tipoColuna(String tabela, String coluna) {
+        return jdbc.query("SELECT DATA_TYPE FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = DATABASE() "
+                        + "AND TABLE_NAME = ? AND COLUMN_NAME = ?",
+                rs -> rs.next() ? rs.getString(1).toLowerCase() : null, tabela, coluna);
     }
 
     private boolean colunaObrigatoria(String tabela, String coluna) {

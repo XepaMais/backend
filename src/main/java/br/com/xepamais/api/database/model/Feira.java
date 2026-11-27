@@ -1,6 +1,8 @@
 package br.com.xepamais.api.database.model;
 
 import jakarta.persistence.*;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 import lombok.Getter;
 import lombok.Setter;
 import java.math.BigDecimal;
@@ -41,6 +43,7 @@ public class Feira {
     @ElementCollection
     @CollectionTable(name = "tb_feira_dia", joinColumns = @JoinColumn(name = "id_feira"))
     @Column(name = "dia_semana")
+    @JdbcTypeCode(SqlTypes.TINYINT)
     private Set<Integer> dias = new HashSet<>();
 
     @Column(name = "horario_inicio")

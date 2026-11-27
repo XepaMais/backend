@@ -1,5 +1,7 @@
 -- Tudo na nuvem: fotos, dados do perfil e chat ficam no banco (antes ficavam no navegador).
--- Rode UMA vez no banco (local e na EC2), depois de pedido-recebimento.sql e antes de subir a nova API.
+-- NÃO é obrigatório rodar: a API faz estas mesmas mudanças sozinha ao iniciar (config/AtualizacaoBanco.java).
+-- Não rode em banco criado pelo script novo do time (xepaDB(1.0) (1).sql): ele já tem estas
+-- colunas e o MySQL acusa "Duplicate column". Fica aqui como referência.
 USE db_xepa;
 
 -- Fotos (xepas e perfil). Guardadas no banco e servidas por GET /api/imagens/{id}.

@@ -1,6 +1,8 @@
 package br.com.xepamais.api.database.model;
 
 import jakarta.persistence.*;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 import lombok.Getter;
 import lombok.Setter;
 import java.time.LocalDateTime;
@@ -29,6 +31,7 @@ public class Avaliacao {
     private Feirante feirante;
 
     @Column(nullable = false)
+    @JdbcTypeCode(SqlTypes.TINYINT) // TINYINT no MySQL (nota de 1 a 5)
     private Integer nota;
 
     @Column(columnDefinition = "TEXT")

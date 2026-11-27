@@ -1,6 +1,7 @@
 package br.com.xepamais.api.database.model;
 
 import jakarta.persistence.*;
+import org.hibernate.annotations.ColumnDefault;
 import lombok.Getter;
 import lombok.Setter;
 import java.math.BigDecimal;
@@ -25,6 +26,7 @@ public class Pedido {
     @JoinColumn(name = "id_feirante", nullable = false)
     private Feirante feirante;
 
+    @ColumnDefault("CURRENT_TIMESTAMP")
     @Column(name = "data_pedido", nullable = false, insertable = false, updatable = false)
     private LocalDateTime dataPedido;
 
@@ -34,6 +36,23 @@ public class Pedido {
     @Column(name = "valor_total", nullable = false, precision = 10, scale = 2)
     private BigDecimal valorTotal;
 
+    // "Foto" da comissão do plano do feirante no momento da compra.
+    @Column(name = "percentual_comissao", nullable = false, precision = 5, scale = 2)
+    private BigDecimal percentualComissao = BigDecimal.ZERO;
+
+    @Column(name = "valor_comissao", nullable = false, precision = 10, scale = 2)
+    private BigDecimal valorComissao = BigDecimal.ZERO;
+
     @Column(name = "codigo_retirada", length = 6)
     private String codigoRetirada;
+
+    // RETIRADA (na feira) ou ENTREGA (em casa). Colunas criadas por database/pedido-recebimento.sql.
+    @Column(name = "tipo_recebimento", nullable = false, length = 10)
+    private String tipoRecebimento = "RETIRADA";
+
+    @Column(name = "endereco_entrega", length = 255)
+    private String enderecoEntrega;
+
+    @Column(name = "taxa_entrega", nullable = false, precision = 10, scale = 2)
+    private BigDecimal taxaEntrega = BigDecimal.ZERO;
 }

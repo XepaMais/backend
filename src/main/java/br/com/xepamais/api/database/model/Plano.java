@@ -29,6 +29,10 @@ public class Plano {
     @Column(name = "valor_plano", nullable = false, precision = 10, scale = 2)
     private BigDecimal valor;
 
+    // Taxa do Xepa+ sobre cada venda (ex.: 15.00 = 15%).
+    @Column(name = "percentual_comissao", nullable = false, precision = 5, scale = 2)
+    private BigDecimal percentualComissao = BigDecimal.ZERO;
+
     @Column(nullable = false)
     private boolean ativo = true;
 }

@@ -1,6 +1,7 @@
 package br.com.xepamais.api.database.model;
 
 import jakarta.persistence.*;
+import org.hibernate.annotations.ColumnDefault;
 import lombok.Getter;
 import lombok.Setter;
 import java.time.LocalDateTime;
@@ -20,6 +21,7 @@ public class Carrinho {
     @JoinColumn(name = "id_consumidor", nullable = false, unique = true)
     private Consumidor consumidor;
 
+    @ColumnDefault("CURRENT_TIMESTAMP")
     @Column(name = "data_criacao", nullable = false, insertable = false, updatable = false)
     private LocalDateTime dataCriacao;
 }

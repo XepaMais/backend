@@ -1,6 +1,7 @@
 package br.com.xepamais.api.database.model;
 
 import jakarta.persistence.*;
+import org.hibernate.annotations.ColumnDefault;
 import lombok.Getter;
 import lombok.Setter;
 import java.math.BigDecimal;
@@ -48,6 +49,7 @@ public class Xepa {
     @Column(name = "status_xepa", nullable = false, length = 20)
     private String status;
 
+    @ColumnDefault("CURRENT_TIMESTAMP")
     @Column(name = "data_cadastro", insertable = false, updatable = false)
     private LocalDateTime dataCadastro;
 

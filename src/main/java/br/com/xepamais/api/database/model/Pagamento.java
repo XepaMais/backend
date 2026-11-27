@@ -1,6 +1,7 @@
 package br.com.xepamais.api.database.model;
 
 import jakarta.persistence.*;
+import org.hibernate.annotations.ColumnDefault;
 import lombok.Getter;
 import lombok.Setter;
 import java.math.BigDecimal;
@@ -34,6 +35,7 @@ public class Pagamento {
     @Column(name = "id_transacao_gateway", length = 100)
     private String idTransacaoGateway;
 
+    @ColumnDefault("CURRENT_TIMESTAMP")
     @Column(name = "data_criacao", nullable = false, insertable = false, updatable = false)
     private LocalDateTime dataCriacao;
 

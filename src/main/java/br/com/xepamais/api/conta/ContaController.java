@@ -73,6 +73,10 @@ public class ContaController {
         if (request.email() != null) {
             String email = request.email().trim().toLowerCase(Locale.ROOT);
             if (!EMAIL.matcher(email).matches() || email.length() > 100) throw invalido("Informe um email válido.");
+            // Conta da demonstração: o email é o que liga a conta ao botão "Visite nosso Demo".
+            if (!email.equalsIgnoreCase(conta.getEmail()) && br.com.xepamais.api.auth.ContaDemo.ehDemo(conta.getEmail())) {
+                throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Na demonstração o email não pode ser trocado.");
+            }
             if (!email.equalsIgnoreCase(conta.getEmail()) && contaRepository.existsByEmailIgnoreCase(email)) {
                 throw new ResponseStatusException(HttpStatus.CONFLICT, "Este email já está cadastrado.");
             }

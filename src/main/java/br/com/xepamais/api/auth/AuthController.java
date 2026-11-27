@@ -41,4 +41,13 @@ public class AuthController {
                                @RequestHeader(value = "User-Agent", required = false) String userAgent) {
         return authService.login(request, userAgent);
     }
+
+    // { "perfil": "consumidor" | "gratis" | "crescer" | "pro" }: entra numa conta da demonstração.
+    public record DemoRequest(String perfil) {}
+
+    @PostMapping("/demo")
+    public ContaResponse demo(@RequestBody DemoRequest request,
+                              @RequestHeader(value = "User-Agent", required = false) String userAgent) {
+        return authService.entrarNaDemo(request == null ? null : request.perfil(), userAgent);
+    }
 }

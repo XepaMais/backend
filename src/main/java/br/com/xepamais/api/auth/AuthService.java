@@ -130,6 +130,21 @@ public class AuthService {
         return response(conta, tipo, userAgent);
     }
 
+    // Demonstração: abre uma sessão numa das contas fictícias, sem senha.
+    // Só as contas de ContaDemo.CONTAS: nenhuma conta real pode ser aberta por aqui.
+    @Transactional
+    public ContaResponse entrarNaDemo(String perfil, String userAgent) {
+        String email = perfil == null ? null : ContaDemo.CONTAS.get(perfil.trim().toLowerCase(Locale.ROOT));
+        if (email == null) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Perfil de demonstração inválido.");
+        }
+        Conta conta = contaRepository.findByEmailIgnoreCase(email).filter(Conta::isAtivo)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE,
+                        "A demonstração está sendo atualizada. Tente de novo em alguns minutos."));
+        String tipo = feiranteRepository.existsByConta_Id(conta.getId()) ? "FEIRANTE" : "CONSUMIDOR";
+        return response(conta, tipo, userAgent);
+    }
+
     private void validarCadastroFeirante(CadastroFeiranteRequest request) {
         if (request == null || vazio(request.nome()) || vazio(request.cpf()) || vazio(request.email())
                 || vazio(request.senha()) || vazio(request.telefone()) || vazio(request.nomeFantasia())

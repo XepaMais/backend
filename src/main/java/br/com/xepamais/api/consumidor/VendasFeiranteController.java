@@ -6,7 +6,7 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
-// O outro lado dos pedidos do consumidor: o feirante vê as vendas e confirma a retirada.
+// O outro lado dos pedidos do consumidor: o feirante vê as vendas e confirma a retirada
 @RestController
 @io.swagger.v3.oas.annotations.tags.Tag(name = "Vendas do feirante", description = "Pedidos recebidos, cancelamento e confirmação de retirada")
 @RequestMapping("/api/feirante/{idConta}/pedidos")
@@ -22,13 +22,13 @@ public class VendasFeiranteController {
         return pedidoService.vendasDoFeirante(idConta);
     }
 
-    // O feirante cancela a venda (ex.: a xepa acabou na barraca).
+    // O feirante cancela a venda
     @PostMapping("/{idPedido}/cancelar")
     public PedidoResponse cancelar(@PathVariable Integer idConta, @PathVariable Integer idPedido) {
         return pedidoService.cancelarPeloFeirante(idConta, idPedido);
     }
 
-    // { "codigo": "1234" } — o código que o consumidor mostra na retirada.
+    // { "codigo": "1234" } — o código que o consumidor mostra na retirada
     @PostMapping("/{idPedido}/retirada")
     public PedidoResponse confirmarRetirada(@PathVariable Integer idConta, @PathVariable Integer idPedido,
                                             @RequestBody RetiradaRequest request) {

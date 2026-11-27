@@ -11,8 +11,7 @@ import java.util.Optional;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-// Rotas com {idConta} só respondem ao dono da conta: o token do login precisa ser da mesma conta.
-// Também exige login para enviar fotos (POST /api/imagens).
+// Rotas com {idConta} só respondem ao dono da conta
 @Configuration
 public class ContaInterceptor implements HandlerInterceptor, WebMvcConfigurer {
     public static final String ATRIBUTO_CONTA = "idContaLogada";
@@ -39,12 +38,15 @@ public class ContaInterceptor implements HandlerInterceptor, WebMvcConfigurer {
         String caminho = request.getRequestURI().substring(request.getContextPath().length());
         Matcher rota = ROTA_DA_CONTA.matcher(caminho);
         boolean envioDeFoto = caminho.equals("/api/imagens");
-        // Rotas sem conta no caminho (ex.: /api/financeiro/categorias) continuam abertas.
+        // Rotas sem conta no caminho continuam abertas
         if (!rota.matches() && !envioDeFoto) return true;
 
         String cabecalho = request.getHeader("Authorization");
-        String token = cabecalho != null && cabecalho.startsWith("Bearer ") ? cabecalho.substring(7) : null;
-        // Token assinado pela API e sessão ainda ativa (não desconectada em "Dispositivos conectados").
+        String token = null;
+        if (cabecalho != null && cabecalho.startsWith("Bearer ")) {
+            token = cabecalho.substring(7);
+        }
+        // Token assinado pela API e sessão ainda ativa
         Optional<ContaTokenService.DadosToken> logada = sessoes.validar(token);
         if (logada.isEmpty()) {
             return negar(response, HttpServletResponse.SC_UNAUTHORIZED, "Sessão expirada. Entre novamente.");

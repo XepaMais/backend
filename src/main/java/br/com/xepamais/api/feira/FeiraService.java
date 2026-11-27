@@ -2,9 +2,9 @@ package br.com.xepamais.api.feira;
 
 import br.com.xepamais.api.database.model.Feira;
 import br.com.xepamais.api.database.model.Feirante;
+import br.com.xepamais.api.database.model.FuncionarioFeira;
 import br.com.xepamais.api.database.repository.FeiraRepository;
 import br.com.xepamais.api.database.repository.FeiranteRepository;
-import br.com.xepamais.api.database.model.FuncionarioFeira;
 import br.com.xepamais.api.database.repository.FuncionarioFeiraRepository;
 import br.com.xepamais.api.feira.dto.FeiraDtos.FeiraRequest;
 import br.com.xepamais.api.feira.dto.FeiraDtos.FeiraResponse;
@@ -14,13 +14,15 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.math.BigDecimal;
-import java.util.Comparator;
+import java.math.RoundingMode;
+import java.text.Normalizer;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
-import java.util.Objects;
-import java.util.stream.Collectors;
 
 @Service
 public class FeiraService {
@@ -37,34 +39,46 @@ public class FeiraService {
         this.feiranteRepository = feiranteRepository;
     }
 
-    // Todas as feiras cadastradas, em ordem de nome (mapa geral do consumidor).
+    // Todas as feiras, em ordem de nome
     @Transactional(readOnly = true)
     public List<FeiraResponse> listar() {
-        return feiraRepository.findAll().stream()
-                .sorted(Comparator.comparing(feira -> semAcento(feira.getNome())))
-                .map(this::response)
-                .toList();
+        List<Feira> feiras = new ArrayList<>(feiraRepository.findAll());
+        ordenarPorNome(feiras);
+        return respostas(feiras);
     }
 
-    // Busca pelo nome: "lapa" acha "Feira Livre da Lapa". Quem começa com o termo vem primeiro.
+    // Busca pelo nome: "lapa" acha "Feira Livre da Lapa"
     @Transactional(readOnly = true)
     public List<FeiraResponse> buscarPorNome(String busca) {
         String termo = semAcento(busca);
-        return feiraRepository.findAll().stream()
-                .filter(feira -> semAcento(feira.getNome()).contains(termo))
-                .sorted(Comparator.comparing((Feira feira) -> !semAcento(feira.getNome()).startsWith(termo))
-                        .thenComparing(feira -> semAcento(feira.getNome())))
-                .map(this::response)
-                .toList();
+        // Primeiro as que começam com o termo, depois as que só contêm
+        List<Feira> comecam = new ArrayList<>();
+        List<Feira> contem = new ArrayList<>();
+        for (Feira feira : feiraRepository.findAll()) {
+            String nome = semAcento(feira.getNome());
+            if (nome.startsWith(termo)) {
+                comecam.add(feira);
+            } else if (nome.contains(termo)) {
+                contem.add(feira);
+            }
+        }
+        ordenarPorNome(comecam);
+        ordenarPorNome(contem);
+        List<Feira> todas = new ArrayList<>();
+        todas.addAll(comecam);
+        todas.addAll(contem);
+        return respostas(todas);
     }
 
     private static String semAcento(String texto) {
-        if (texto == null) return "";
-        return java.text.Normalizer.normalize(texto, java.text.Normalizer.Form.NFD)
-                .replaceAll("\\p{M}", "").toLowerCase(Locale.ROOT).trim();
+        if (texto == null) {
+            return "";
+        }
+        String semAcento = Normalizer.normalize(texto, Normalizer.Form.NFD).replaceAll("\\p{M}", "");
+        return semAcento.toLowerCase(Locale.ROOT).trim();
     }
 
-    // Feiras a até "raioKm" do ponto (lat, lng), da mais perto para a mais longe.
+    // Feiras a até "raioKm" do ponto, da mais perto para a mais longe
     @Transactional(readOnly = true)
     public List<FeiraResponse> listarProximas(double lat, double lng, double raioKm) {
         if (lat < -90 || lat > 90 || lng < -180 || lng > 180) {
@@ -74,26 +88,45 @@ public class FeiraService {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "O raio deve ser entre 0 e 100 km.");
         }
 
-        return feiraRepository.findAll().stream()
-                .filter(this::temCoordenada)
-                .filter(feira -> distanciaKm(lat, lng, feira) <= raioKm)
-                .sorted(Comparator.comparingDouble(feira -> distanciaKm(lat, lng, feira)))
-                .map(this::response)
-                .toList();
+        List<Feira> perto = new ArrayList<>();
+        for (Feira feira : feiraRepository.findAll()) {
+            if (feira.getLatitude() != null && feira.getLongitude() != null
+                    && distanciaKm(lat, lng, feira) <= raioKm) {
+                perto.add(feira);
+            }
+        }
+
+        // Ordena pela distância
+        for (int i = 1; i < perto.size(); i++) {
+            int j = i;
+            while (j > 0 && distanciaKm(lat, lng, perto.get(j - 1)) > distanciaKm(lat, lng, perto.get(j))) {
+                Feira temp = perto.get(j);
+                perto.set(j, perto.get(j - 1));
+                perto.set(j - 1, temp);
+                j--;
+            }
+        }
+        return respostas(perto);
     }
 
-    // ---------- Feiras do feirante ----------
+    // Feiras do feirante
 
     @Transactional(readOnly = true)
     public List<FeiraResponse> listarDoFeirante(Integer idConta) {
         Feirante feirante = feirante(idConta);
         Map<Integer, List<String>> funcionarios = funcionariosPorFeira(feirante);
-        return feiraRepository.doFeirante(idConta).stream()
-                .map(feira -> response(feira, funcionarios.getOrDefault(feira.getId(), List.of())))
-                .toList();
+        List<FeiraResponse> lista = new ArrayList<>();
+        for (Feira feira : feiraRepository.doFeirante(idConta)) {
+            List<String> nomes = funcionarios.get(feira.getId());
+            if (nomes == null) {
+                nomes = new ArrayList<>();
+            }
+            lista.add(response(feira, nomes));
+        }
+        return lista;
     }
 
-    // Cria a feira e liga ao feirante (tb_feirante_feira). Ela passa a aparecer no mapa do consumidor.
+    // Cria a feira e liga ao feirante
     @Transactional
     public FeiraResponse criar(Integer idConta, FeiraRequest request) {
         Feirante feirante = feirante(idConta);
@@ -101,10 +134,10 @@ public class FeiraService {
         preencher(feira, request);
         feira = feiraRepository.save(feira);
 
-        if (feirante.getFeiras() == null) feirante.setFeiras(new HashSet<>());
+        if (feirante.getFeiras() == null) {
+            feirante.setFeiras(new HashSet<>());
+        }
         feirante.getFeiras().add(feira);
-        // Grava já o vínculo feirante–feira (tb_feirante_feira): no banco, tb_funcionario_feira tem
-        // FK para esse vínculo, e o Hibernate deixaria a tabela de ligação para o fim da transação.
         feiranteRepository.saveAndFlush(feirante);
         return response(feira, salvarFuncionarios(feirante, feira, request.funcionarios()));
     }
@@ -114,21 +147,38 @@ public class FeiraService {
         Feirante feirante = feirante(idConta);
         Feira feira = feiraDoFeirante(idConta, idFeira);
         preencher(feira, request);
-        List<String> funcionarios = request.funcionarios() == null
-                ? funcionariosPorFeira(feirante).getOrDefault(feira.getId(), List.of())
-                : salvarFuncionarios(feirante, feira, request.funcionarios());
+        List<String> funcionarios;
+        if (request.funcionarios() == null) {
+            funcionarios = funcionariosPorFeira(feirante).get(feira.getId());
+            if (funcionarios == null) {
+                funcionarios = new ArrayList<>();
+            }
+        } else {
+            funcionarios = salvarFuncionarios(feirante, feira, request.funcionarios());
+        }
         return response(feira, funcionarios);
     }
 
-    // Troca a lista de funcionários do feirante nessa feira (nomes vazios ou repetidos são ignorados).
+    // Troca a lista de funcionários do feirante nessa feira
     private List<String> salvarFuncionarios(Feirante feirante, Feira feira, List<String> nomes) {
         funcionarioRepository.apagar(feirante.getId(), feira.getId());
-        if (nomes == null) return List.of();
-        List<String> limpos = nomes.stream()
-                .filter(Objects::nonNull).map(String::trim).filter(nome -> !nome.isEmpty())
-                .distinct().limit(20).toList();
+        List<String> limpos = new ArrayList<>();
+        if (nomes == null) {
+            return limpos;
+        }
+        for (String nome : nomes) {
+            if (nome == null) {
+                continue;
+            }
+            nome = nome.trim();
+            if (!nome.isEmpty() && !limpos.contains(nome) && limpos.size() < 20) {
+                limpos.add(nome);
+            }
+        }
         for (String nome : limpos) {
-            if (nome.length() > 80) throw invalido("O nome do funcionário pode ter até 80 caracteres.");
+            if (nome.length() > 80) {
+                throw invalido("O nome do funcionário pode ter até 80 caracteres.");
+            }
             FuncionarioFeira funcionario = new FuncionarioFeira();
             funcionario.setFeirante(feirante);
             funcionario.setFeira(feira);
@@ -138,14 +188,20 @@ public class FeiraService {
         return limpos;
     }
 
-    // Funcionários do feirante, agrupados por feira (usado também no perfil público do feirante).
+    // Funcionários do feirante, separados por feira
     public Map<Integer, List<String>> funcionariosPorFeira(Feirante feirante) {
-        return funcionarioRepository.findByFeirante_IdOrderByIdAsc(feirante.getId()).stream()
-                .collect(Collectors.groupingBy(f -> f.getFeira().getId(),
-                        Collectors.mapping(FuncionarioFeira::getNome, Collectors.toList())));
+        Map<Integer, List<String>> mapa = new HashMap<>();
+        for (FuncionarioFeira f : funcionarioRepository.findByFeirante_IdOrderByIdAsc(feirante.getId())) {
+            Integer idFeira = f.getFeira().getId();
+            if (mapa.get(idFeira) == null) {
+                mapa.put(idFeira, new ArrayList<>());
+            }
+            mapa.get(idFeira).add(f.getNome());
+        }
+        return mapa;
     }
 
-    // Se a feira tiver xepas ou entregas, o banco recusa e o controller responde 409.
+    // Se a feira tiver xepas ou entregas, o banco recusa e o controller responde 409
     @Transactional
     public void excluir(Integer idConta, Integer idFeira) {
         Feirante feirante = feirante(idConta);
@@ -157,34 +213,59 @@ public class FeiraService {
     }
 
     private Feirante feirante(Integer idConta) {
-        return feiranteRepository.findByConta_Id(idConta)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Feirante não encontrado."));
+        Feirante feirante = feiranteRepository.findByConta_Id(idConta).orElse(null);
+        if (feirante == null) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Feirante não encontrado.");
+        }
+        return feirante;
     }
 
     private Feira feiraDoFeirante(Integer idConta, Integer idFeira) {
         feirante(idConta);
-        return feiraRepository.doFeirante(idConta, idFeira)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Feira não encontrada."));
+        Feira feira = feiraRepository.doFeirante(idConta, idFeira).orElse(null);
+        if (feira == null) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Feira não encontrada.");
+        }
+        return feira;
     }
 
     private void preencher(Feira feira, FeiraRequest request) {
-        if (request == null) throw invalido("Dados da feira não enviados.");
+        if (request == null) {
+            throw invalido("Dados da feira não enviados.");
+        }
 
         String nome = texto(request.nome(), "Informe o nome da feira.", 100);
         String endereco = texto(request.endereco(), "Informe o endereço da feira.", 150);
         String cidade = texto(request.cidade(), "Informe a cidade da feira.", 80);
         String uf = texto(request.uf(), "Informe a UF da feira.", 2).toUpperCase(Locale.ROOT);
-        if (!uf.matches("[A-Z]{2}")) throw invalido("UF inválida.");
+        if (!uf.matches("[A-Z]{2}")) {
+            throw invalido("UF inválida.");
+        }
 
-        String cep = request.cep() == null ? "" : request.cep().replaceAll("\\D", "");
-        if (!cep.isEmpty() && cep.length() != 8) throw invalido("O CEP precisa ter 8 números.");
+        String cep = "";
+        if (request.cep() != null) {
+            cep = request.cep().replaceAll("\\D", "");
+        }
+        if (!cep.isEmpty() && cep.length() != 8) {
+            throw invalido("O CEP precisa ter 8 números.");
+        }
 
-        String numero = request.numero() == null ? "" : request.numero().trim();
-        if (numero.length() > 10) throw invalido("O número pode ter até 10 caracteres.");
+        String numero = "";
+        if (request.numero() != null) {
+            numero = request.numero().trim();
+        }
+        if (numero.length() > 10) {
+            throw invalido("O número pode ter até 10 caracteres.");
+        }
 
-        List<Integer> dias = request.dias() == null ? List.of() : request.dias();
-        if (dias.stream().anyMatch(dia -> dia == null || dia < 1 || dia > 7)) {
-            throw invalido("Dia da semana inválido (use 1=segunda ... 7=domingo).");
+        List<Integer> dias = new ArrayList<>();
+        if (request.dias() != null) {
+            dias = request.dias();
+        }
+        for (Integer dia : dias) {
+            if (dia == null || dia < 1 || dia > 7) {
+                throw invalido("Dia da semana inválido (use 1=segunda ... 7=domingo).");
+            }
         }
 
         if (request.horarioInicio() != null && request.horarioFim() != null
@@ -194,29 +275,46 @@ public class FeiraService {
 
         BigDecimal lat = request.latitude();
         BigDecimal lng = request.longitude();
-        if (lat == null || lng == null) throw invalido("Não foi possível localizar a feira no mapa.");
+        if (lat == null || lng == null) {
+            throw invalido("Não foi possível localizar a feira no mapa.");
+        }
         if (lat.abs().compareTo(BigDecimal.valueOf(90)) > 0 || lng.abs().compareTo(BigDecimal.valueOf(180)) > 0) {
             throw invalido("Latitude ou longitude inválida.");
         }
 
         feira.setNome(nome);
         feira.setEndereco(endereco);
-        feira.setNumero(numero.isEmpty() ? null : numero);
-        feira.setCep(cep.isEmpty() ? null : cep);
+        if (numero.isEmpty()) {
+            feira.setNumero(null);
+        } else {
+            feira.setNumero(numero);
+        }
+        if (cep.isEmpty()) {
+            feira.setCep(null);
+        } else {
+            feira.setCep(cep);
+        }
         feira.setCidade(cidade);
         feira.setUf(uf);
         feira.getDias().clear();
         feira.getDias().addAll(dias);
         feira.setHorarioInicio(request.horarioInicio());
         feira.setHorarioFim(request.horarioFim());
-        feira.setLatitude(lat.setScale(6, java.math.RoundingMode.HALF_UP));
-        feira.setLongitude(lng.setScale(6, java.math.RoundingMode.HALF_UP));
+        feira.setLatitude(lat.setScale(6, RoundingMode.HALF_UP));
+        feira.setLongitude(lng.setScale(6, RoundingMode.HALF_UP));
     }
 
     private static String texto(String valor, String mensagem, int maximo) {
-        String limpo = valor == null ? "" : valor.trim();
-        if (limpo.isEmpty()) throw invalido(mensagem);
-        if (limpo.length() > maximo) throw invalido(mensagem.replace("Informe", "Encurte"));
+        String limpo = "";
+        if (valor != null) {
+            limpo = valor.trim();
+        }
+        if (limpo.isEmpty()) {
+            throw invalido(mensagem);
+        }
+        if (limpo.length() > maximo) {
+            throw invalido(mensagem.replace("Informe", "Encurte"));
+        }
         return limpo;
     }
 
@@ -224,11 +322,20 @@ public class FeiraService {
         return new ResponseStatusException(HttpStatus.BAD_REQUEST, mensagem);
     }
 
-    private boolean temCoordenada(Feira feira) {
-        return feira.getLatitude() != null && feira.getLongitude() != null;
+    // Ordena as feiras pelo nome (sem acento)
+    private static void ordenarPorNome(List<Feira> feiras) {
+        for (int i = 1; i < feiras.size(); i++) {
+            int j = i;
+            while (j > 0 && semAcento(feiras.get(j - 1).getNome()).compareTo(semAcento(feiras.get(j).getNome())) > 0) {
+                Feira temp = feiras.get(j);
+                feiras.set(j, feiras.get(j - 1));
+                feiras.set(j - 1, temp);
+                j--;
+            }
+        }
     }
 
-    // Distância em linha reta (fórmula de Haversine), em km.
+    // Distância em linha reta, em km
     private double distanciaKm(double lat, double lng, Feira feira) {
         double latFeira = feira.getLatitude().doubleValue();
         double lngFeira = feira.getLongitude().doubleValue();
@@ -242,13 +349,19 @@ public class FeiraService {
         return 2 * RAIO_TERRA_KM * Math.asin(Math.sqrt(a));
     }
 
-    private FeiraResponse response(Feira feira) {
-        return response(feira, List.of());
+    private List<FeiraResponse> respostas(List<Feira> feiras) {
+        List<FeiraResponse> lista = new ArrayList<>();
+        for (Feira feira : feiras) {
+            lista.add(response(feira, new ArrayList<>()));
+        }
+        return lista;
     }
 
     private FeiraResponse response(Feira feira, List<String> funcionarios) {
+        List<Integer> dias = new ArrayList<>(feira.getDias());
+        Collections.sort(dias);
         return new FeiraResponse(feira.getId(), feira.getNome(), feira.getEndereco(), feira.getNumero(),
-                feira.getCep(), feira.getCidade(), feira.getUf(), feira.getDias().stream().sorted().toList(),
+                feira.getCep(), feira.getCidade(), feira.getUf(), dias,
                 feira.getHorarioInicio(), feira.getHorarioFim(), feira.getLatitude(), feira.getLongitude(),
                 funcionarios);
     }

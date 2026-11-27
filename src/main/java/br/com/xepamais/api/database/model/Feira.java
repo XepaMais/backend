@@ -39,7 +39,7 @@ public class Feira {
     @Column(name = "uf_feira", nullable = false, length = 2)
     private String uf;
 
-    // Dias da feira ficam em tb_feira_dia: 1=segunda ... 7=domingo (igual ao DayOfWeek do Java).
+    // Dias da feira ficam em tb_feira_dia: 1=segunda ... 7=domingo
     @ElementCollection
     @CollectionTable(name = "tb_feira_dia", joinColumns = @JoinColumn(name = "id_feira"))
     @Column(name = "dia_semana")

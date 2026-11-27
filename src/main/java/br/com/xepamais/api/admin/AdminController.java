@@ -21,7 +21,7 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
-// Painel de administração do banco. O front só mostra a tela; quem decide o acesso é aqui.
+// Painel de administração do banco
 @RestController
 @io.swagger.v3.oas.annotations.tags.Tag(name = "Admin", description = "Painel de administração (token próprio do admin)")
 @RequestMapping("/api/admin")
@@ -53,11 +53,11 @@ public class AdminController {
 
     @PostMapping("/login")
     public Map<String, String> login(@RequestBody LoginAdmin dados) {
-        // Sem ADMIN_EMAIL / ADMIN_SENHA_HASH no servidor o painel fica desligado (nada de senha padrão no Git).
+        // Sem ADMIN_EMAIL / ADMIN_SENHA_HASH no servidor o painel fica desligado
         if (emailAdmin.isBlank() || senhaHash == null || senhaHash.isBlank()) {
             throw new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE, "Painel de administração não configurado no servidor.");
         }
-        // Contador único (não por IP): o cabeçalho X-Forwarded-For pode ser forjado.
+        // Contador único: o cabeçalho X-Forwarded-For pode ser forjado
         String origem = "global";
         long agora = Instant.now().getEpochSecond();
         long[] registro = falhas.get(origem);

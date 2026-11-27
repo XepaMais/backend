@@ -36,7 +36,7 @@ public class Conta{
     @Column(name = "telefone_conta", length = 20)
     private String telefone;
 
-    // Endereço da foto (ex.: /api/imagens/12). Coluna criada por database/nuvem-fotos-perfil-chat.sql.
+    // Endereço da foto
     @Column(name = "foto_conta", length = 255)
     private String foto;
 
@@ -48,18 +48,18 @@ public class Conta{
     @Column(name = "data_cadastro", insertable = false, updatable = false)
     private LocalDateTime dataCadastro;
 
-    // LGPD: quando e em qual versão a pessoa aceitou os Termos de Uso e a Política de Privacidade.
+    // LGPD
     @Column(name = "aceite_termos_em")
     private LocalDateTime aceiteTermosEm;
 
     @Column(name = "versao_termos", length = 10)
     private String versaoTermos;
 
-    // Consentimento opcional para receber novidades por e-mail (pode ser revogado no perfil).
+    // Consentimento opcional para receber novidades por e-mail
     @Column(name = "aceite_marketing", nullable = false)
     private boolean aceiteMarketing = false;
 
-    // Data em que a conta foi excluída a pedido do titular (dados pessoais anonimizados).
+    // Data em que a conta foi excluída a pedido do titular
     @Column(name = "data_exclusao")
     private LocalDateTime dataExclusao;
 

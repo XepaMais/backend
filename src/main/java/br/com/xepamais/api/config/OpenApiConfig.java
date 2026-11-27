@@ -12,9 +12,7 @@ import org.springframework.context.annotation.Configuration;
 
 import java.util.List;
 
-// Documentação interativa da API em /api/docs (JSON OpenAPI em /api/docs/openapi).
-// Para testar uma rota protegida: faça POST /api/auth/login, copie o "token" da resposta,
-// clique em "Authorize" e cole o token.
+// Documentação interativa da API em /api/docs
 @Configuration
 public class OpenApiConfig {
     private static final String BEARER = "bearerAuth";

@@ -15,14 +15,14 @@ public class AvaliacaoController {
         this.service = service;
     }
 
-    // { "nota": 5, "comentario": "Tudo fresquinho!" } — só depois que o pedido foi retirado/entregue.
+    // { "nota": 5, "comentario": "Tudo fresquinho!" }
     @PutMapping("/consumidor/{idConta}/pedidos/{idPedido}/avaliacao")
     public PedidoResponse avaliar(@PathVariable Integer idConta, @PathVariable Integer idPedido,
                                   @RequestBody AvaliacaoRequest request) {
         return service.avaliar(idConta, idPedido, request);
     }
 
-    // Público: perfil do feirante na página da xepa (foto, barraca, média e avaliações recentes).
+    // Público: perfil do feirante na página da xepa
     @GetMapping("/feirantes/{idContaFeirante}")
     public PerfilPublicoResponse perfilPublico(@PathVariable Integer idContaFeirante) {
         return service.perfilPublico(idContaFeirante);

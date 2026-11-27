@@ -14,7 +14,7 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 
-// Chama a API do Gemini (Google) pelo servido, a chave fica só em GEMINI_API_KEY na EC2
+// Chama a API do Gemini pelo servido, a chave fica só em GEMINI_API_KEY na EC2
 @Component
 public class GeminiCliente implements ClienteIa {
     private static final Logger log = LoggerFactory.getLogger(GeminiCliente.class);
@@ -27,8 +27,20 @@ public class GeminiCliente implements ClienteIa {
 
     public GeminiCliente(@Value("${app.ia.gemini-api-key:}") String chave,
                          @Value("${app.ia.modelos:gemini-3.5-flash-lite,gemini-3.1-flash-lite}") String modelos) {
-        this.chave = chave == null ? "" : chave.trim();
-        this.modelos = Arrays.stream(modelos.split(",")).map(String::trim).filter(m -> !m.isEmpty()).toList();
+        if (chave == null) {
+            this.chave = "";
+        } else {
+            this.chave = chave.trim();
+        }
+        // Os modelos vêm separados por vírgula
+        List<String> lista = new ArrayList<>();
+        for (String modelo : modelos.split(",")) {
+            modelo = modelo.trim();
+            if (!modelo.isEmpty()) {
+                lista.add(modelo);
+            }
+        }
+        this.modelos = lista;
         SimpleClientHttpRequestFactory tempo = new SimpleClientHttpRequestFactory();
         tempo.setConnectTimeout(10_000);
         tempo.setReadTimeout(60_000);

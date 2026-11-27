@@ -8,7 +8,7 @@ import java.util.List;
 public final class XepaDtos {
     private XepaDtos() {}
 
-    // idFeirante = id da CONTA do feirante (igual ao "id" do login).
+    // idFeirante = id da CONTA do feirante
     public record XepaResponse(Integer id, String nome, String categoria, String itens, String descricao,
                                String imagem, String unidade, BigDecimal preco, BigDecimal precoReferencia,
                                BigDecimal quantidade, LocalDate validade, LocalDate dataRetirada,
@@ -18,7 +18,7 @@ public final class XepaDtos {
                                Integer idFeirante, String feirante, String barraca,
                                java.time.LocalDateTime dataCadastro) {}
 
-    // Cadastro da xepa pelo feirante. categoria: "Verduras e legumes", "Frutas", "Tempero" ou "Completa".
+    // Cadastro da xepa pelo feirante
     public record XepaRequest(String nome, String categoria, String itens, String descricao, String imagem,
                               String unidade, BigDecimal preco, BigDecimal precoReferencia, BigDecimal quantidade,
                               LocalDate validade, LocalDate dataRetirada, LocalTime horarioRetiradaInicio,

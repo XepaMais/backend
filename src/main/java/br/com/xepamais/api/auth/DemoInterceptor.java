@@ -1,5 +1,6 @@
 package br.com.xepamais.api.auth;
 
+import br.com.xepamais.api.database.model.Conta;
 import br.com.xepamais.api.database.repository.ContaRepository;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
@@ -11,11 +12,7 @@ import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-// As contas da demonstração são usadas por todo mundo ao mesmo tempo. Aqui ficam bloqueadas as ações
-// que estragariam a demonstração para os outros visitantes: trocar a senha, excluir a conta,
-// desconectar os outros aparelhos e trocar o plano do feirante. O resto (xepas, pedidos, financeiro,
-// conversas, perfil) funciona normalmente e aparece em qualquer aparelho.
-// Roda depois do ContaInterceptor, que já conferiu que o token é dessa conta.
+// As contas da demonstração são usadas por todo mundo ao mesmo tempo
 @Configuration
 public class DemoInterceptor implements HandlerInterceptor, WebMvcConfigurer {
     private static final Pattern BLOQUEADAS = Pattern.compile(
@@ -45,8 +42,13 @@ public class DemoInterceptor implements HandlerInterceptor, WebMvcConfigurer {
         for (int grupo = 1; grupo <= rota.groupCount() && idConta == null; grupo++) {
             if (rota.group(grupo) != null) idConta = Integer.valueOf(rota.group(grupo));
         }
-        boolean demo = idConta != null && contaRepository.findById(idConta)
-                .map(conta -> ContaDemo.ehDemo(conta.getEmail())).orElse(false);
+        boolean demo = false;
+        if (idConta != null) {
+            Conta conta = contaRepository.findById(idConta).orElse(null);
+            if (conta != null && ContaDemo.ehDemo(conta.getEmail())) {
+                demo = true;
+            }
+        }
         if (!demo) return true;
 
         response.setStatus(HttpServletResponse.SC_FORBIDDEN);

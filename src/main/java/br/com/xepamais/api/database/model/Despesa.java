@@ -44,14 +44,14 @@ public class Despesa {
     @Column(name = "valor_unitario", nullable = false, precision = 10, scale = 2)
     private BigDecimal valorUnitario;
 
-    // valor_despesa é calculado pelo MySQL (quantidade * valor_unitario), por isso não é gravado aqui.
+    // valor_despesa é calculado pelo MySQL, por isso não é gravado aqui
     @Column(name = "data_despesa", nullable = false)
     private LocalDate data;
 
     @Column(name = "data_cadastro", insertable = false, updatable = false)
     private LocalDateTime dataCadastro;
 
-    // Mesmo cálculo da coluna valor_despesa do banco.
+    // Mesmo cálculo da coluna valor_despesa do banco
     public BigDecimal valorTotal() {
         return quantidade.multiply(valorUnitario).setScale(2, RoundingMode.HALF_UP);
     }

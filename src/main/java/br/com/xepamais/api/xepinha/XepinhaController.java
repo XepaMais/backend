@@ -6,7 +6,7 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
-// Xepinha: assistente com IA dos feirantes (planos Broto e Colheita).
+// Xepinha: assistente com IA dos feirantes
 @RestController
 @io.swagger.v3.oas.annotations.tags.Tag(name = "Xepinha (IA)", description = "Assistente com IA dos feirantes")
 @RequestMapping("/api")
@@ -17,20 +17,19 @@ public class XepinhaController {
         this.service = service;
     }
 
-    // Conversas salvas do feirante (as mais recentes primeiro).
+    // Conversas salvas do feirante
     @GetMapping("/feirante/{idConta}/xepinha/conversas")
     public List<ConversaResponse> conversas(@PathVariable Integer idConta) {
         return service.conversas(idConta);
     }
 
-    // { "idConversa": 3, "texto": "Como registro uma despesa?" } — sem idConversa começa uma nova.
-    // Devolve a conversa inteira, já com a resposta da Xepinha.
+    // { "idConversa": 3, "texto": "Como registro uma despesa?" }
     @PostMapping("/feirante/{idConta}/xepinha/mensagens")
     public ConversaResponse perguntar(@PathVariable Integer idConta, @RequestBody PerguntaRequest request) {
         return service.perguntar(idConta, request);
     }
 
-    // Modo demonstração (sem login): nada é salvo e há limite de perguntas por IP.
+    // Modo demonstração: nada é salvo e há limite de perguntas por IP
     @PostMapping("/xepinha/demo")
     public RespostaDemo perguntarDemo(@RequestBody PerguntaDemoRequest request, HttpServletRequest http) {
         return service.perguntarDemo(request, ip(http));

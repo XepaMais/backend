@@ -28,10 +28,10 @@ public final class FinanceiroDtos {
 
     public record Totais(BigDecimal hoje, BigDecimal semana, BigDecimal mes) {}
 
-    // lucro = rendas - despesas em cada período.
+    // lucro = rendas - despesas em cada período
     public record ResumoResponse(Totais rendas, Totais despesas, Totais lucro) {}
 
-    // Linha da planilha: tipo é "lucro" (renda) ou "gasto" (despesa).
+    // Linha da planilha: tipo é "lucro" ou "gasto"
     public record RegistroHistorico(String id, LocalDate data, String descricao, String categoria, String tipo,
                                     BigDecimal valor, String feira) {}
 

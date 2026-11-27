@@ -1,5 +1,6 @@
 package br.com.xepamais.api.suporte;
 
+import br.com.xepamais.api.auth.ContaTokenService;
 import br.com.xepamais.api.auth.SessaoService;
 import br.com.xepamais.api.database.model.MensagemSuporte;
 import br.com.xepamais.api.database.repository.ContaRepository;
@@ -19,14 +20,14 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.regex.Pattern;
 
-// Formulário da página "Suporte" (público). A mensagem fica salva no banco e aparece no painel admin.
+// Formulário da página "Suporte"
 @RestController
 @io.swagger.v3.oas.annotations.tags.Tag(name = "Suporte", description = "Mensagens de suporte")
 @RequestMapping("/api/suporte")
 public class SuporteController {
     private static final ZoneId FUSO = ZoneId.of("America/Sao_Paulo");
     private static final Pattern EMAIL = Pattern.compile("^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$");
-    // Contra spam: no máximo 5 mensagens a cada 10 minutos por IP.
+    // Contra spam: no máximo 5 mensagens a cada 10 minutos por IP
     private static final int LIMITE = 5;
     private static final long JANELA_MS = 10 * 60 * 1000L;
 
@@ -69,11 +70,13 @@ public class SuporteController {
         suporte.setAssunto(assunto);
         suporte.setMensagem(mensagem);
         suporte.setDataEnvio(LocalDateTime.now(FUSO));
-        // Logado: a mensagem fica ligada à conta (ajuda a equipe a achar os pedidos da pessoa).
+        // Logado: a mensagem fica ligada à conta
         String cabecalho = http.getHeader("Authorization");
         if (cabecalho != null && cabecalho.startsWith("Bearer ")) {
-            sessoes.validar(cabecalho.substring(7))
-                    .ifPresent(dados -> suporte.setConta(contaRepository.getReferenceById(dados.idConta())));
+            ContaTokenService.DadosToken dados = sessoes.validar(cabecalho.substring(7)).orElse(null);
+            if (dados != null) {
+                suporte.setConta(contaRepository.getReferenceById(dados.idConta()));
+            }
         }
         repository.save(suporte);
         return new SuporteResponse(suporte.getId(), "Mensagem enviada! Nossa equipe responderá pelo e-mail informado.");
@@ -81,28 +84,50 @@ public class SuporteController {
 
     private void limitar(String ip) {
         long agora = System.currentTimeMillis();
-        Deque<Long> fila = envios.computeIfAbsent(ip == null ? "?" : ip, k -> new ArrayDeque<>());
+        String chave = ip;
+        if (chave == null) {
+            chave = "?";
+        }
+        envios.putIfAbsent(chave, new ArrayDeque<>());
+        Deque<Long> fila = envios.get(chave);
+        if (fila == null) {
+            fila = new ArrayDeque<>();
+        }
         synchronized (fila) {
-            while (!fila.isEmpty() && agora - fila.peekFirst() > JANELA_MS) fila.pollFirst();
+            // Tira os envios antigos (fora da janela de tempo)
+            while (!fila.isEmpty() && agora - fila.peekFirst() > JANELA_MS) {
+                fila.pollFirst();
+            }
             if (fila.size() >= LIMITE) {
                 throw new ResponseStatusException(HttpStatus.TOO_MANY_REQUESTS,
                         "Você enviou muitas mensagens seguidas. Tente de novo em alguns minutos.");
             }
             fila.addLast(agora);
         }
-        if (envios.size() > 10_000) envios.clear();
+        if (envios.size() > 10000) {
+            envios.clear();
+        }
     }
 
     private static String ip(HttpServletRequest http) {
         String encaminhado = http.getHeader("X-Forwarded-For");
-        if (encaminhado != null && !encaminhado.isBlank()) return encaminhado.split(",")[0].trim();
+        if (encaminhado != null && !encaminhado.isBlank()) {
+            return encaminhado.split(",")[0].trim();
+        }
         return http.getRemoteAddr();
     }
 
     private static String texto(String valor, String mensagem, int maximo) {
-        String limpo = valor == null ? "" : valor.trim();
-        if (limpo.isEmpty()) throw invalido(mensagem);
-        if (limpo.length() > maximo) throw invalido("Texto muito longo (máximo " + maximo + " caracteres).");
+        String limpo = "";
+        if (valor != null) {
+            limpo = valor.trim();
+        }
+        if (limpo.isEmpty()) {
+            throw invalido(mensagem);
+        }
+        if (limpo.length() > maximo) {
+            throw invalido("Texto muito longo (máximo " + maximo + " caracteres).");
+        }
         return limpo;
     }
 

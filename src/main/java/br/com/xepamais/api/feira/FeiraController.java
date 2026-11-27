@@ -9,8 +9,7 @@ import org.springframework.web.server.ResponseStatusException;
 
 import java.util.List;
 
-// Feiras: o mapa do consumidor lê todas; o feirante cadastra as dele.
-// {idConta} é o "id" devolvido pelo login.
+// Feiras
 @RestController
 @io.swagger.v3.oas.annotations.tags.Tag(name = "Feiras", description = "Mapa de feiras e feiras do feirante")
 @RequestMapping("/api/feiras")
@@ -21,11 +20,13 @@ public class FeiraController {
         this.service = service;
     }
 
-    // GET /api/feiras → todas as feiras (mapa geral)
-    // GET /api/feiras?busca=lapa → só as que têm "lapa" no nome (sem diferença de acento/maiúscula)
+    // Lista as feiras, com busca opcional pelo nome
     @GetMapping
     public List<FeiraResponse> listar(@RequestParam(required = false) String busca) {
-        return busca == null || busca.isBlank() ? service.listar() : service.buscarPorNome(busca);
+        if (busca == null || busca.isBlank()) {
+            return service.listar();
+        }
+        return service.buscarPorNome(busca);
     }
 
     // GET /api/feiras/proximas?lat=-23.52&lng=-46.69&raioKm=10 → feiras perto do usuário
@@ -36,7 +37,7 @@ public class FeiraController {
         return service.listarProximas(lat, lng, raioKm);
     }
 
-    // ---------- Feiras do feirante ----------
+    // Feiras do feirante
 
     @GetMapping("/feirante/{idConta}")
     public List<FeiraResponse> listarDoFeirante(@PathVariable Integer idConta) {

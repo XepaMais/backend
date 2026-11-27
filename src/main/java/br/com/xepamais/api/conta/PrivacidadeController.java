@@ -12,7 +12,7 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.Map;
 
-// LGPD: a pessoa consulta, baixa e apaga os próprios dados. A rota exige o token da mesma conta.
+// LGPD: a pessoa consulta, baixa e apaga os próprios dados
 @RestController
 @RequestMapping("/api/conta/{idConta}")
 @Tag(name = "Privacidade (LGPD)", description = "Direitos do titular: acesso, portabilidade, consentimento e exclusão")
@@ -44,7 +44,7 @@ public class PrivacidadeController {
         return service.alterarConsentimento(idConta, request);
     }
 
-    // DELETE com corpo { "senha": "..." }: pedir a senha evita exclusão por quem pegou o aparelho logado.
+    // Exclui a conta (precisa da senha)
     @DeleteMapping
     @ResponseStatus(HttpStatus.NO_CONTENT)
     @Operation(summary = "Exclui a conta: anonimiza os dados pessoais e encerra todos os logins")

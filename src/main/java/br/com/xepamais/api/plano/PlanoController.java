@@ -17,7 +17,7 @@ public class PlanoController {
         this.service = service;
     }
 
-    // Pública: os planos aparecem também na Home.
+    // Pública: os planos aparecem também na Home
     @GetMapping("/planos")
     public List<PlanoResponse> listar() {
         return service.listar();

@@ -9,9 +9,7 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
-// Protege o login contra tentativa e erro de senha (força bruta):
-// depois de 5 senhas erradas para o mesmo e-mail, o login dele fica bloqueado por 15 minutos.
-// A chave é o e-mail (e não o IP), porque o IP que chega pela Vercel pode ser forjado no cabeçalho.
+// Protege o login contra tentativa e erro de senha
 @Component
 public class LimiteTentativas {
     static final int TENTATIVAS_MAXIMAS = 5;

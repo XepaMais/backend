@@ -12,8 +12,7 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.Base64;
 
-// Gera e confere o token do painel admin: "email|expiraEm" assinado com HMAC-SHA256.
-// Sem ADMIN_TOKEN_SECRET a chave é sorteada ao iniciar, e reiniciar a API desloga o admin.
+// Gera e confere o token do painel admin: "email|expiraEm" assinado com HMAC-SHA256
 @Component
 public class AdminTokenService {
     private static final Duration VALIDADE = Duration.ofHours(8);

@@ -22,7 +22,7 @@ public class Mensagem {
     @JoinColumn(name = "id_chat", nullable = false)
     private Chat chat;
 
-    // Quem enviou (consumidor ou feirante do chat).
+    // Quem enviou
     @ManyToOne
     @JoinColumn(name = "id_conta", nullable = false)
     private Conta conta;
@@ -30,7 +30,7 @@ public class Mensagem {
     @Column(name = "texto_mensagem", nullable = false, columnDefinition = "TEXT")
     private String texto;
 
-    // Preenchida pela API no fuso de São Paulo (o front compara com as leituras).
+    // Preenchida pela API no fuso de São Paulo
     @ColumnDefault("CURRENT_TIMESTAMP")
     @Column(name = "data_envio", nullable = false, updatable = false)
     private LocalDateTime dataEnvio;

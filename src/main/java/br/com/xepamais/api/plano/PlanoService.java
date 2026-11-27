@@ -10,19 +10,20 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.math.BigDecimal;
+import java.util.ArrayList;
 import java.util.List;
 
-// Planos do Xepa+ e o plano escolhido por cada feirante.
+// Planos do Xepa+ e o plano escolhido por cada feirante
 @Service
 public class PlanoService {
-    // Sem plano escolhido vale o Semente (mesma regra do front).
+    // Sem plano escolhido vale o Semente
     public static final String PLANO_PADRAO = "gratis";
 
-    // codigo: gratis, crescer ou pro. percentualComissao: 15.00 = 15%.
+    // codigo: gratis, crescer ou pro. percentualComissao: 15.00 = 15%
     public record PlanoResponse(String codigo, String nome, String descricao, BigDecimal valor,
                                 BigDecimal percentualComissao) {}
 
-    // escolhido = false quando o feirante ainda não escolheu (o plano mostrado é o padrão).
+    // escolhido = false quando o feirante ainda não escolheu
     public record PlanoDoFeiranteResponse(boolean escolhido, PlanoResponse plano) {}
 
     public record EscolhaPlanoRequest(String codigo) {}
@@ -37,47 +38,75 @@ public class PlanoService {
 
     @Transactional(readOnly = true)
     public List<PlanoResponse> listar() {
-        return planoRepository.findByAtivoTrueOrderByValorAscIdAsc().stream()
-                .map(PlanoService::resposta).toList();
+        List<PlanoResponse> lista = new ArrayList<>();
+        for (Plano plano : planoRepository.findByAtivoTrueOrderByValorAscIdAsc()) {
+            lista.add(resposta(plano));
+        }
+        return lista;
     }
 
     @Transactional(readOnly = true)
     public PlanoDoFeiranteResponse doFeirante(Integer idConta) {
         Feirante feirante = feirante(idConta);
         Plano plano = feirante.getPlano();
-        return new PlanoDoFeiranteResponse(plano != null, plano != null ? resposta(plano) : padrao().map(PlanoService::resposta).orElse(null));
+        if (plano != null) {
+            return new PlanoDoFeiranteResponse(true, resposta(plano));
+        }
+        // Ainda não escolheu: mostra o plano padrão
+        Plano padrao = padrao();
+        if (padrao == null) {
+            return new PlanoDoFeiranteResponse(false, null);
+        }
+        return new PlanoDoFeiranteResponse(false, resposta(padrao));
     }
 
-    // Troca o plano na hora. Nenhuma cobrança é feita pela API.
+    // Troca o plano na hora
     @Transactional
     public PlanoDoFeiranteResponse escolher(Integer idConta, EscolhaPlanoRequest request) {
         Feirante feirante = feirante(idConta);
-        String codigo = request == null || request.codigo() == null ? "" : request.codigo().trim();
-        Plano plano = planoRepository.findByCodigo(codigo).filter(Plano::isAtivo)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.BAD_REQUEST, "Plano inválido."));
+        String codigo = "";
+        if (request != null && request.codigo() != null) {
+            codigo = request.codigo().trim();
+        }
+        Plano plano = planoRepository.findByCodigo(codigo).orElse(null);
+        if (plano == null || !plano.isAtivo()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Plano inválido.");
+        }
         feirante.setPlano(plano);
         return new PlanoDoFeiranteResponse(true, resposta(plano));
     }
 
-    // Comissão que vale para o feirante agora (plano escolhido, ou o Semente).
+    // Comissão que vale para o feirante agora
     @Transactional(readOnly = true)
     public BigDecimal comissaoDo(Feirante feirante) {
-        Plano plano = feirante.getPlano() != null ? feirante.getPlano() : padrao().orElse(null);
-        return plano == null || plano.getPercentualComissao() == null ? BigDecimal.ZERO : plano.getPercentualComissao();
+        Plano plano = feirante.getPlano();
+        if (plano == null) {
+            plano = padrao();
+        }
+        if (plano == null || plano.getPercentualComissao() == null) {
+            return BigDecimal.ZERO;
+        }
+        return plano.getPercentualComissao();
     }
 
-    // Código do plano escolhido (vai no login para o front não pedir o plano de novo em outro aparelho).
+    // Código do plano escolhido
     public static String codigoDo(Feirante feirante) {
-        return feirante.getPlano() == null ? null : feirante.getPlano().getCodigo();
+        if (feirante.getPlano() == null) {
+            return null;
+        }
+        return feirante.getPlano().getCodigo();
     }
 
-    private java.util.Optional<Plano> padrao() {
-        return planoRepository.findByCodigo(PLANO_PADRAO);
+    private Plano padrao() {
+        return planoRepository.findByCodigo(PLANO_PADRAO).orElse(null);
     }
 
     private Feirante feirante(Integer idConta) {
-        return feiranteRepository.findByConta_Id(idConta)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Feirante não encontrado."));
+        Feirante feirante = feiranteRepository.findByConta_Id(idConta).orElse(null);
+        if (feirante == null) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Feirante não encontrado.");
+        }
+        return feirante;
     }
 
     private static PlanoResponse resposta(Plano plano) {

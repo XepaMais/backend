@@ -38,7 +38,7 @@ public class Pedido {
     @Column(name = "valor_total", nullable = false, precision = 10, scale = 2)
     private BigDecimal valorTotal;
 
-    // "Foto" da comissão do plano do feirante no momento da compra.
+    // "Foto" da comissão do plano do feirante no momento da compra
     @Column(name = "percentual_comissao", nullable = false, precision = 5, scale = 2)
     private BigDecimal percentualComissao = BigDecimal.ZERO;
 
@@ -49,7 +49,7 @@ public class Pedido {
     @JdbcTypeCode(SqlTypes.CHAR) // CHAR(4) no MySQL: código de 4 dígitos
     private String codigoRetirada;
 
-    // RETIRADA (na feira) ou ENTREGA (em casa). Colunas criadas por database/pedido-recebimento.sql.
+    // RETIRADA ou ENTREGA
     @Column(name = "tipo_recebimento", nullable = false, length = 10)
     private String tipoRecebimento = "RETIRADA";
 

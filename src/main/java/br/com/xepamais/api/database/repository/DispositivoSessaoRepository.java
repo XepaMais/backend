@@ -12,7 +12,7 @@ import java.util.Optional;
 
 public interface DispositivoSessaoRepository extends JpaRepository<DispositivoSessao, Integer> {
 
-    // Aparelhos com login ativo, o usado mais recentemente primeiro.
+    // Aparelhos com login ativo, o usado mais recentemente primeiro
     @Query("""
             select d from DispositivoSessao d where d.conta.id = :idConta and d.revogado = false
               and d.expiraEm > :agora order by coalesce(d.ultimoAcesso, d.dataCriacao) desc, d.id desc""")
@@ -20,7 +20,7 @@ public interface DispositivoSessaoRepository extends JpaRepository<DispositivoSe
 
     Optional<DispositivoSessao> findByIdAndConta_Id(Integer id, Integer idConta);
 
-    // "Sair dos outros aparelhos": encerra todas as sessões da conta, menos a atual.
+    // "Sair dos outros aparelhos": encerra todas as sessões da conta, menos a atual
     @Modifying
     @Query("update DispositivoSessao d set d.revogado = true where d.conta.id = :idConta and d.id <> :atual")
     int revogarOutras(@Param("idConta") Integer idConta, @Param("atual") Integer atual);

@@ -5,6 +5,7 @@ spring:
   web:
     error:
       # Devolve o motivo dos erros (ex.: "Email ou senha inválidos.") no campo "message"
+      include-message: always
   datasource:
     url: ${DB_URL}
     username: ${DB_USER}

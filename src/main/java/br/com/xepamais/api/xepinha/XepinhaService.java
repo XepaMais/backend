@@ -23,21 +23,18 @@ import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.stream.Collectors;
 
-// Xepinha, a assistente dos feirantes. A pergunta vai para a IA pelo servidor (com a persona e a base
-// de conhecimento de resources/xepinha) e a conversa fica salva no banco.
+// Xepinha, a assistente dos feirantes
 @Service
 public class XepinhaService {
     private static final ZoneId FUSO = ZoneId.of("America/Sao_Paulo");
     private static final Set<String> PLANOS_COM_IA = Set.of("crescer", "pro");
     private static final int TEXTO_MAXIMO = 4000;
     private static final int HISTORICO_MAXIMO = 30;
-    // Modo demonstração (sem login): no máximo 15 perguntas a cada 10 minutos por IP.
+    // Modo demonstração: no máximo 15 perguntas a cada 10 minutos por IP
     private static final int DEMO_LIMITE = 15;
     private static final long DEMO_JANELA_MS = 10 * 60 * 1000L;
-    // Teto geral do demo (somando todos os IPs): o IP vem de cabeçalho e pode ser forjado,
-    // então este limite protege a cota da API do Gemini mesmo assim.
+    // Teto geral do demo
     private static final int DEMO_LIMITE_GLOBAL = 300;
     private static final long DEMO_JANELA_GLOBAL_MS = 60 * 60 * 1000L;
     private final Deque<Long> perguntasDemoGlobal = new ArrayDeque<>();
@@ -45,12 +42,12 @@ public class XepinhaService {
     public static final String MSG_INDISPONIVEL = "Ops! Tive um problema ao processar sua resposta. Tente novamente em instantes.";
     public static final String MSG_SOBRECARGA = "Estou com muitas conversas agora. Tente de novo em alguns segundos.";
 
-    // remetente: "user" (feirante) ou "ia" (Xepinha) — os mesmos nomes do front.
+    // remetente: "user" ou "ia" — os mesmos nomes do front
     public record MensagemResponse(Integer id, String remetente, String texto, LocalDateTime data) {}
 
     public record ConversaResponse(Integer id, String titulo, LocalDateTime criadaEm, List<MensagemResponse> mensagens) {}
 
-    // idConversa vazio = começa uma conversa nova.
+    // idConversa vazio = começa uma conversa nova
     public record PerguntaRequest(Integer idConversa, String texto) {}
 
     public record TurnoDemo(String remetente, String texto) {}
@@ -80,7 +77,7 @@ public class XepinhaService {
         this.instrucoes = recurso("xepinha/persona.md") + "\n\n## BASE DE CONHECIMENTO\n" + recurso("xepinha/base-conhecimento.md");
     }
 
-    //  Feirante logado 
+    // Feirante logado
 
     public List<ConversaResponse> conversas(Integer idConta) {
         return transacao.execute(status -> {
@@ -89,31 +86,56 @@ public class XepinhaService {
         });
     }
 
-    // Pergunta e resposta só são salvas se a Xepinha responder (se falhar, a pessoa tenta de novo).
+    // Pergunta e resposta só são salvas se a Xepinha responder
     public ConversaResponse perguntar(Integer idConta, PerguntaRequest request) {
-        String texto = texto(request == null ? null : request.texto());
-        Integer idConversa = request == null ? null : request.idConversa();
+        String pergunta = null;
+        if (request != null) {
+            pergunta = request.texto();
+        }
+        String texto = texto(pergunta);
+        // Se o request fosse null, o texto() já teria dado erro
+        Integer idConversa = request.idConversa();
 
-        // 1) Lê o histórico (transação curta: a chamada à IA pode demorar e não segura o banco).
+        // 1) Lê o histórico
         List<Turno> historico = transacao.execute(status -> {
             verificarPlano(idConta);
-            if (idConversa == null) return List.of();
-            ConversaIa conversa = conversaRepository.findByIdAndConta_Id(idConversa, idConta)
-                    .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Conversa não encontrada."));
+            List<Turno> turnos = new ArrayList<>();
+            if (idConversa == null) {
+                return turnos;
+            }
+            ConversaIa conversa = conversaRepository.findByIdAndConta_Id(idConversa, idConta).orElse(null);
+            if (conversa == null) {
+                throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Conversa não encontrada.");
+            }
             List<MensagemIa> mensagens = mensagemRepository.dasConversas(List.of(conversa.getId()));
-            return mensagens.subList(Math.max(0, mensagens.size() - HISTORICO_MAXIMO), mensagens.size()).stream()
-                    .map(m -> new Turno("IA".equals(m.getPapel()) ? "model" : "user", m.getTexto()))
-                    .toList();
+            // Só as últimas mensagens vão para a IA
+            int comeco = mensagens.size() - HISTORICO_MAXIMO;
+            if (comeco < 0) {
+                comeco = 0;
+            }
+            for (int i = comeco; i < mensagens.size(); i++) {
+                MensagemIa m = mensagens.get(i);
+                if ("IA".equals(m.getPapel())) {
+                    turnos.add(new Turno("model", m.getTexto()));
+                } else {
+                    turnos.add(new Turno("user", m.getTexto()));
+                }
+            }
+            return turnos;
         });
 
-        // 2) Pergunta à IA.
+        // 2) Pergunta à IA
         String resposta = chamarIa(historico, texto);
 
-        // 3) Salva pergunta e resposta.
+        // 3) Salva pergunta e resposta
         return transacao.execute(status -> {
             Conta conta = contaRepository.getReferenceById(idConta);
-            ConversaIa conversa = idConversa == null ? novaConversa(conta, texto)
-                    : conversaRepository.findByIdAndConta_Id(idConversa, idConta).orElseThrow();
+            ConversaIa conversa;
+            if (idConversa == null) {
+                conversa = novaConversa(conta, texto);
+            } else {
+                conversa = conversaRepository.findByIdAndConta_Id(idConversa, idConta).orElseThrow();
+            }
             LocalDateTime agora = LocalDateTime.now(FUSO);
             salvarMensagem(conta, conversa, "USUARIO", texto, agora);
             salvarMensagem(conta, conversa, "IA", resposta, agora.plusNanos(1_000_000));
@@ -121,37 +143,73 @@ public class XepinhaService {
         });
     }
 
-    //  Modo demonstração (sem login, nada é salvo) 
+    // Modo demonstração
 
     public RespostaDemo perguntarDemo(PerguntaDemoRequest request, String ip) {
-        String texto = texto(request == null ? null : request.texto());
+        String pergunta = null;
+        if (request != null) {
+            pergunta = request.texto();
+        }
+        String texto = texto(pergunta);
         limitarDemo(ip);
-        List<TurnoDemo> anteriores = request.historico() == null ? List.of() : request.historico();
-        List<Turno> historico = anteriores.stream()
-                .filter(t -> t != null && t.texto() != null && !t.texto().isBlank())
-                .skip(Math.max(0, anteriores.size() - 20))
-                .map(t -> new Turno("ia".equals(t.remetente()) ? "model" : "user",
-                        t.texto().length() > TEXTO_MAXIMO ? t.texto().substring(0, TEXTO_MAXIMO) : t.texto()))
-                .toList();
+        List<TurnoDemo> anteriores = new ArrayList<>();
+        if (request.historico() != null) {
+            anteriores = request.historico();
+        }
+
+        // Tira as mensagens vazias
+        List<TurnoDemo> validos = new ArrayList<>();
+        for (TurnoDemo t : anteriores) {
+            if (t != null && t.texto() != null && !t.texto().isBlank()) {
+                validos.add(t);
+            }
+        }
+
+        // Manda só as últimas 20
+        int pular = anteriores.size() - 20;
+        if (pular < 0) {
+            pular = 0;
+        }
+        List<Turno> historico = new ArrayList<>();
+        for (int i = pular; i < validos.size(); i++) {
+            TurnoDemo t = validos.get(i);
+            String textoTurno = t.texto();
+            if (textoTurno.length() > TEXTO_MAXIMO) {
+                textoTurno = textoTurno.substring(0, TEXTO_MAXIMO);
+            }
+            if ("ia".equals(t.remetente())) {
+                historico.add(new Turno("model", textoTurno));
+            } else {
+                historico.add(new Turno("user", textoTurno));
+            }
+        }
         return new RespostaDemo(chamarIa(historico, texto));
     }
 
-    //  Auxiliares 
+    // Auxiliares
 
     private String chamarIa(List<Turno> historico, String texto) {
         try {
             return ia.responder(instrucoes, historico, texto);
         } catch (IaIndisponivelException ex) {
-            throw new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE,
-                    ex.isSobrecarga() ? MSG_SOBRECARGA : MSG_INDISPONIVEL, ex);
+            String mensagem = MSG_INDISPONIVEL;
+            if (ex.isSobrecarga()) {
+                mensagem = MSG_SOBRECARGA;
+            }
+            throw new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE, mensagem, ex);
         }
     }
 
-    // A Xepinha faz parte dos planos Broto e Colheita (mesma regra do front).
+    // A Xepinha faz parte dos planos Broto e Colheita
     private void verificarPlano(Integer idConta) {
-        Feirante feirante = feiranteRepository.findByConta_Id(idConta)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Feirante não encontrado."));
-        String plano = feirante.getPlano() == null ? null : feirante.getPlano().getCodigo();
+        Feirante feirante = feiranteRepository.findByConta_Id(idConta).orElse(null);
+        if (feirante == null) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Feirante não encontrado.");
+        }
+        String plano = null;
+        if (feirante.getPlano() != null) {
+            plano = feirante.getPlano().getCodigo();
+        }
         if (plano == null || !PLANOS_COM_IA.contains(plano)) {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN, "A Xepinha faz parte dos planos Broto e Colheita.");
         }
@@ -160,7 +218,11 @@ public class XepinhaService {
     private ConversaIa novaConversa(Conta conta, String primeiraPergunta) {
         ConversaIa conversa = new ConversaIa();
         conversa.setConta(conta);
-        conversa.setTitulo(primeiraPergunta.length() > 40 ? primeiraPergunta.substring(0, 40).trim() + "..." : primeiraPergunta);
+        String titulo = primeiraPergunta;
+        if (titulo.length() > 40) {
+            titulo = titulo.substring(0, 40).trim() + "...";
+        }
+        conversa.setTitulo(titulo);
         conversa.setDataCriacao(LocalDateTime.now(FUSO));
         return conversaRepository.save(conversa);
     }
@@ -176,15 +238,37 @@ public class XepinhaService {
     }
 
     private List<ConversaResponse> respostas(List<ConversaIa> conversas) {
-        if (conversas.isEmpty()) return List.of();
-        Map<Integer, List<MensagemIa>> mensagens = mensagemRepository
-                .dasConversas(conversas.stream().map(ConversaIa::getId).toList()).stream()
-                .collect(Collectors.groupingBy(m -> m.getConversa().getId()));
-        return conversas.stream().map(c -> new ConversaResponse(c.getId(), c.getTitulo(), c.getDataCriacao(),
-                mensagens.getOrDefault(c.getId(), List.of()).stream()
-                        .map(m -> new MensagemResponse(m.getId(), "IA".equals(m.getPapel()) ? "ia" : "user",
-                                m.getTexto(), m.getDataEnvio()))
-                        .toList())).toList();
+        List<ConversaResponse> lista = new ArrayList<>();
+        if (conversas.isEmpty()) {
+            return lista;
+        }
+        List<Integer> ids = new ArrayList<>();
+        for (ConversaIa c : conversas) {
+            ids.add(c.getId());
+        }
+
+        // Separa as mensagens por conversa
+        Map<Integer, List<MensagemResponse>> mensagens = new HashMap<>();
+        for (MensagemIa m : mensagemRepository.dasConversas(ids)) {
+            Integer idConversa = m.getConversa().getId();
+            if (mensagens.get(idConversa) == null) {
+                mensagens.put(idConversa, new ArrayList<>());
+            }
+            String remetente = "user";
+            if ("IA".equals(m.getPapel())) {
+                remetente = "ia";
+            }
+            mensagens.get(idConversa).add(new MensagemResponse(m.getId(), remetente, m.getTexto(), m.getDataEnvio()));
+        }
+
+        for (ConversaIa c : conversas) {
+            List<MensagemResponse> daConversa = mensagens.get(c.getId());
+            if (daConversa == null) {
+                daConversa = new ArrayList<>();
+            }
+            lista.add(new ConversaResponse(c.getId(), c.getTitulo(), c.getDataCriacao(), daConversa));
+        }
+        return lista;
     }
 
     private void limitarDemo(String ip) {
@@ -199,21 +283,39 @@ public class XepinhaService {
             }
             perguntasDemoGlobal.addLast(agora);
         }
-        Deque<Long> fila = perguntasDemo.computeIfAbsent(ip == null ? "?" : ip, k -> new ArrayDeque<>());
+        String chave = ip;
+        if (chave == null) {
+            chave = "?";
+        }
+        perguntasDemo.putIfAbsent(chave, new ArrayDeque<>());
+        Deque<Long> fila = perguntasDemo.get(chave);
+        if (fila == null) {
+            fila = new ArrayDeque<>();
+        }
         synchronized (fila) {
-            while (!fila.isEmpty() && agora - fila.peekFirst() > DEMO_JANELA_MS) fila.pollFirst();
+            while (!fila.isEmpty() && agora - fila.peekFirst() > DEMO_JANELA_MS) {
+                fila.pollFirst();
+            }
             if (fila.size() >= DEMO_LIMITE) {
                 throw new ResponseStatusException(HttpStatus.TOO_MANY_REQUESTS,
                         "Limite de perguntas da demonstração atingido. Tente de novo em alguns minutos ou entre com sua conta.");
             }
             fila.addLast(agora);
         }
-        if (perguntasDemo.size() > 10_000) perguntasDemo.clear(); // evita crescer sem limite
+        // Limpa o mapa para não crescer sem limite
+        if (perguntasDemo.size() > 10000) {
+            perguntasDemo.clear();
+        }
     }
 
     private static String texto(String valor) {
-        String limpo = valor == null ? "" : valor.trim();
-        if (limpo.isEmpty()) throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Escreva sua pergunta.");
+        String limpo = "";
+        if (valor != null) {
+            limpo = valor.trim();
+        }
+        if (limpo.isEmpty()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Escreva sua pergunta.");
+        }
         if (limpo.length() > TEXTO_MAXIMO) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Pergunta muito longa (máximo 4000 caracteres).");
         }

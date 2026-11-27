@@ -4,10 +4,10 @@ import br.com.xepamais.api.consumidor.dto.ConsumidorDtos.*;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
 
+import java.math.BigDecimal;
 import java.util.List;
 
-// Área do consumidor: carrinho, pedidos e impacto.
-// {idConta} é o "id" devolvido pelo login (conta do tipo CONSUMIDOR).
+// Área do consumidor: carrinho, pedidos e impacto. {idConta} é o "id" devolvido pelo login
 @RestController
 @io.swagger.v3.oas.annotations.tags.Tag(name = "Consumidor", description = "Carrinho, endereço, pedidos e impacto do consumidor")
 @RequestMapping("/api/consumidor/{idConta}")
@@ -20,9 +20,9 @@ public class ConsumidorController {
         this.pedidoService = pedidoService;
     }
 
-    // Perfil e senha: /api/conta/{idConta}/perfil (ContaController).
+    // Perfil e senha: /api/conta/{idConta}/perfil
 
-    // ---------- Carrinho ----------
+    // Carrinho
 
     @GetMapping("/carrinho")
     public CarrinhoResponse carrinho(@PathVariable Integer idConta) {
@@ -39,7 +39,11 @@ public class ConsumidorController {
     @PutMapping("/carrinho/itens/{idXepa}")
     public CarrinhoResponse definirItem(@PathVariable Integer idConta, @PathVariable Integer idXepa,
                                         @RequestBody QuantidadeRequest request) {
-        return consumidorService.definirItem(idConta, idXepa, request == null ? null : request.quantidade());
+        BigDecimal quantidade = null;
+        if (request != null) {
+            quantidade = request.quantidade();
+        }
+        return consumidorService.definirItem(idConta, idXepa, quantidade);
     }
 
     @DeleteMapping("/carrinho/itens/{idXepa}")
@@ -53,9 +57,9 @@ public class ConsumidorController {
         consumidorService.esvaziar(idConta);
     }
 
-    // ---------- Endereço de entrega ----------
+    // Endereço de entrega
 
-    // Forma de receber e último endereço de entrega (vale em qualquer aparelho).
+    // Forma de receber e último endereço de entrega
     @GetMapping("/endereco")
     public RecebimentoPreferidoResponse recebimento(@PathVariable Integer idConta) {
         return consumidorService.recebimento(idConta);
@@ -68,9 +72,9 @@ public class ConsumidorController {
         return consumidorService.salvarRecebimento(idConta, request);
     }
 
-    // ---------- Pedidos ----------
+    // Pedidos
 
-    // Confirma o pagamento. Devolve um pedido por feirante.
+    // Confirma o pagamento
     @PostMapping("/pedidos")
     @ResponseStatus(HttpStatus.CREATED)
     public List<PedidoResponse> finalizarCompra(@PathVariable Integer idConta,
@@ -83,7 +87,7 @@ public class ConsumidorController {
         return pedidoService.listar(idConta);
     }
 
-    // Cancela o pedido antes da retirada (estoque volta, Pix marcado como estornado).
+    // Cancela o pedido antes da retirada
     @PostMapping("/pedidos/{idPedido}/cancelar")
     public PedidoResponse cancelarPedido(@PathVariable Integer idConta, @PathVariable Integer idPedido) {
         return pedidoService.cancelarPeloConsumidor(idConta, idPedido);
@@ -94,7 +98,7 @@ public class ConsumidorController {
         return pedidoService.detalhe(idConta, idPedido);
     }
 
-    // ---------- Impacto ----------
+    // Impacto
 
     @GetMapping("/impacto")
     public ImpactoResponse impacto(@PathVariable Integer idConta) {

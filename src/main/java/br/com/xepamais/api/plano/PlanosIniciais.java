@@ -36,17 +36,19 @@ public class PlanosIniciais implements ApplicationRunner {
     @Transactional
     public void run(ApplicationArguments args) {
         for (Padrao padrao : PLANOS) {
-            if (planoRepository.findByCodigo(padrao.codigo()).isPresent()) continue;
-            // Plano cadastrado antes com o mesmo nome: só ganha o código.
-            Plano plano = planoRepository.findByNomeIgnoreCase(padrao.nome()).orElseGet(() -> {
-                Plano novo = new Plano();
-                novo.setNome(padrao.nome());
-                novo.setValor(new BigDecimal(padrao.valor()));
-                novo.setPercentualComissao(new BigDecimal(padrao.comissao()));
-                novo.setDescricao(padrao.descricao());
-                novo.setAtivo(true);
-                return novo;
-            });
+            if (planoRepository.findByCodigo(padrao.codigo()).isPresent()) {
+                continue;
+            }
+            // Se já tem um plano com o mesmo nome, só coloca o código nele
+            Plano plano = planoRepository.findByNomeIgnoreCase(padrao.nome()).orElse(null);
+            if (plano == null) {
+                plano = new Plano();
+                plano.setNome(padrao.nome());
+                plano.setValor(new BigDecimal(padrao.valor()));
+                plano.setPercentualComissao(new BigDecimal(padrao.comissao()));
+                plano.setDescricao(padrao.descricao());
+                plano.setAtivo(true);
+            }
             plano.setCodigo(padrao.codigo());
             planoRepository.save(plano);
         }

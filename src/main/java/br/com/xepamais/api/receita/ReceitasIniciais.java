@@ -13,8 +13,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 
-// Garante no banco as receitas que a Cozinha já mostrava (as mesmas do front).
-// Roda depois da AtualizacaoBanco. Receita que já existe (pelo código) não é alterada.
+// Garante no banco as receitas que a Cozinha já mostrava
 @Component
 @Order(Ordered.HIGHEST_PRECEDENCE + 20)
 public class ReceitasIniciais implements ApplicationRunner {

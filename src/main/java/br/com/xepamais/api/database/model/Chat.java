@@ -7,8 +7,7 @@ import org.hibernate.annotations.ColumnDefault;
 
 import java.time.LocalDateTime;
 
-// Conversa entre consumidor e feirante: uma por pedido, ou uma dúvida sobre uma xepa (sem pedido).
-// Colunas novas criadas por database/nuvem-fotos-perfil-chat.sql.
+// Conversa entre consumidor e feirante: uma por pedido, ou uma dúvida sobre uma xepa
 @Entity
 @Table(name = "tb_chat")
 @Getter

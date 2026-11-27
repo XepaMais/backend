@@ -6,7 +6,7 @@ import lombok.Setter;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
-// Saque via Pix do saldo das vendas pelo Xepa+. Simulado: nenhum dinheiro é transferido.
+// Saque via Pix do saldo das vendas pelo Xepa+
 @Entity
 @Table(name = "tb_saque")
 @Getter

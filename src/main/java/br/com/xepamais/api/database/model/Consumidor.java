@@ -19,11 +19,11 @@ public class Consumidor {
     @JoinColumn(name = "id_conta", nullable = false, unique = true)
     private Conta conta;
 
-    // Forma de receber escolhida por último no carrinho: RETIRADA ou ENTREGA.
+    // Forma de receber escolhida por último no carrinho: RETIRADA ou ENTREGA
     @Column(name = "recebimento_preferido", nullable = false, length = 10)
     private String recebimentoPreferido = "RETIRADA";
 
-    // Último endereço de entrega (vale em qualquer aparelho). Colunas criadas pela AtualizacaoBanco.
+    // Último endereço de entrega
     @Column(name = "cep_entrega", length = 8)
     private String cepEntrega;
 

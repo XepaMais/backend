@@ -15,8 +15,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 
-// Lê e altera qualquer tabela do banco para o painel admin.
-// Nomes de tabela e coluna só entram no SQL depois de conferidos no information_schema.
+// Lê e altera qualquer tabela do banco para o painel admin
 @Service
 public class AdminBancoService {
     static final String OCULTO = "••••••";
@@ -41,7 +40,10 @@ public class AdminBancoService {
         List<Tabela> resultado = new ArrayList<>();
         for (String nome : nomes) {
             Long total = jdbc.queryForObject("SELECT COUNT(*) FROM " + q(nome), Long.class);
-            resultado.add(new Tabela(nome, total == null ? 0 : total));
+            if (total == null) {
+                total = 0L;
+            }
+            resultado.add(new Tabela(nome, total));
         }
         return resultado;
     }
@@ -57,7 +59,9 @@ public class AdminBancoService {
         if (busca != null && !busca.isBlank()) {
             StringBuilder concat = new StringBuilder("CONCAT_WS(' '");
             for (Coluna c : colunas) {
-                if (!c.oculta()) concat.append(", ").append(q(c.nome()));
+                if (!c.oculta()) {
+                    concat.append(", ").append(q(c.nome()));
+                }
             }
             concat.append(")");
             filtro = " WHERE " + concat + " LIKE ?";
@@ -66,15 +70,25 @@ public class AdminBancoService {
 
         Long total = jdbc.queryForObject("SELECT COUNT(*) FROM " + q(nome) + filtro, Long.class, params.toArray());
 
-        String ordem = colunas.stream().filter(Coluna::chavePrimaria).findFirst()
-                .map(c -> " ORDER BY " + q(c.nome()) + " DESC").orElse("");
+        if (total == null) {
+            total = 0L;
+        }
+
+        // Ordena pela chave primária, do mais novo para o mais antigo
+        String ordem = "";
+        for (Coluna c : colunas) {
+            if (c.chavePrimaria()) {
+                ordem = " ORDER BY " + q(c.nome()) + " DESC";
+                break;
+            }
+        }
         params.add(tam);
         params.add(pag * tam);
         List<Map<String, Object>> linhas = jdbc.query(
                 "SELECT * FROM " + q(nome) + filtro + ordem + " LIMIT ? OFFSET ?",
                 (rs, i) -> linha(rs, colunas), params.toArray());
 
-        return new Pagina(nome, colunas, linhas, total == null ? 0 : total, pag, tam);
+        return new Pagina(nome, colunas, linhas, total, pag, tam);
     }
 
     public void inserir(String tabela, Map<String, Object> valores) {
@@ -82,15 +96,29 @@ public class AdminBancoService {
         Map<String, Coluna> colunas = porNome(colunas(nome));
         List<String> nomes = new ArrayList<>();
         List<Object> params = new ArrayList<>();
-        valores.forEach((coluna, valor) -> {
+        for (String coluna : valores.keySet()) {
+            Object valor = valores.get(coluna);
             Coluna c = colunas.get(coluna);
-            if (c == null || c.oculta()) throw invalido("Coluna inválida: " + coluna);
-            if (c.autoIncremento() && vazio(valor)) return;
+            if (c == null || c.oculta()) {
+                throw invalido("Coluna inválida: " + coluna);
+            }
+            // O id automático o banco preenche sozinho
+            if (c.autoIncremento() && vazio(valor)) {
+                continue;
+            }
             nomes.add(q(c.nome()));
             params.add(normalizar(valor));
-        });
-        if (nomes.isEmpty()) throw invalido("Preencha ao menos um campo.");
-        String marcadores = String.join(", ", nomes.stream().map(n -> "?").toList());
+        }
+        if (nomes.isEmpty()) {
+            throw invalido("Preencha ao menos um campo.");
+        }
+        String marcadores = "";
+        for (int i = 0; i < nomes.size(); i++) {
+            if (i > 0) {
+                marcadores = marcadores + ", ";
+            }
+            marcadores = marcadores + "?";
+        }
         executar("INSERT INTO " + q(nome) + " (" + String.join(", ", nomes) + ") VALUES (" + marcadores + ")", params);
     }
 
@@ -101,14 +129,21 @@ public class AdminBancoService {
         Map<String, Coluna> colunas = porNome(lista);
         List<String> sets = new ArrayList<>();
         List<Object> params = new ArrayList<>();
-        valores.forEach((coluna, valor) -> {
+        for (String coluna : valores.keySet()) {
             Coluna c = colunas.get(coluna);
-            if (c == null || c.oculta()) throw invalido("Coluna inválida: " + coluna);
-            if (c.chavePrimaria()) return;
+            if (c == null || c.oculta()) {
+                throw invalido("Coluna inválida: " + coluna);
+            }
+            // A chave primária não muda
+            if (c.chavePrimaria()) {
+                continue;
+            }
             sets.add(q(c.nome()) + " = ?");
-            params.add(normalizar(valor));
-        });
-        if (sets.isEmpty()) throw invalido("Nada para alterar.");
+            params.add(normalizar(valores.get(coluna)));
+        }
+        if (sets.isEmpty()) {
+            throw invalido("Nada para alterar.");
+        }
         params.add(id);
         executar("UPDATE " + q(nome) + " SET " + String.join(", ", sets) + " WHERE " + q(chave.nome()) + " = ?", params);
     }
@@ -122,11 +157,16 @@ public class AdminBancoService {
     private void executar(String sql, List<Object> params) {
         try {
             int afetadas = jdbc.update(sql, params.toArray());
-            if (afetadas == 0) throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Registro não encontrado.");
+            if (afetadas == 0) {
+                throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Registro não encontrado.");
+            }
         } catch (DataAccessException ex) {
             Throwable causa = ex.getMostSpecificCause();
-            throw new ResponseStatusException(HttpStatus.CONFLICT,
-                    "O banco recusou a operação: " + (causa != null ? causa.getMessage() : ex.getMessage()));
+            String motivo = ex.getMessage();
+            if (causa != null) {
+                motivo = causa.getMessage();
+            }
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "O banco recusou a operação: " + motivo);
         }
     }
 
@@ -138,8 +178,13 @@ public class AdminBancoService {
     }
 
     private String conferirTabela(String tabela) {
-        return nomesTabelas().stream().filter(t -> t.equalsIgnoreCase(tabela)).findFirst()
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Tabela não encontrada."));
+        // Só aceita nomes que existem de verdade no banco
+        for (String t : nomesTabelas()) {
+            if (t.equalsIgnoreCase(tabela)) {
+                return t;
+            }
+        }
+        throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Tabela não encontrada.");
     }
 
     private List<Coluna> colunas(String tabela) {
@@ -162,14 +207,23 @@ public class AdminBancoService {
     }
 
     private static Coluna chave(List<Coluna> colunas) {
-        List<Coluna> chaves = colunas.stream().filter(Coluna::chavePrimaria).toList();
-        if (chaves.size() != 1) throw invalido("Esta tabela não tem uma chave primária simples; edite direto no banco.");
+        List<Coluna> chaves = new ArrayList<>();
+        for (Coluna c : colunas) {
+            if (c.chavePrimaria()) {
+                chaves.add(c);
+            }
+        }
+        if (chaves.size() != 1) {
+            throw invalido("Esta tabela não tem uma chave primária simples; edite direto no banco.");
+        }
         return chaves.get(0);
     }
 
     private static Map<String, Coluna> porNome(List<Coluna> colunas) {
         Map<String, Coluna> mapa = new LinkedHashMap<>();
-        colunas.forEach(c -> mapa.put(c.nome(), c));
+        for (Coluna c : colunas) {
+            mapa.put(c.nome(), c);
+        }
         return mapa;
     }
 
@@ -185,7 +239,8 @@ public class AdminBancoService {
                 linha.put(nome, OCULTO);
             } else if (valor == null || valor instanceof Number || valor instanceof Boolean) {
                 linha.put(nome, valor);
-            } else if (valor instanceof byte[] bytes) {
+            } else if (valor instanceof byte[]) {
+                byte[] bytes = (byte[]) valor;
                 linha.put(nome, "[binário, " + bytes.length + " bytes]");
             } else {
                 linha.put(nome, valor.toString());
@@ -195,11 +250,21 @@ public class AdminBancoService {
     }
 
     private static Object normalizar(Object valor) {
-        return valor instanceof String s && s.isEmpty() ? null : valor;
+        // Texto vazio vira null
+        if (valor instanceof String && ((String) valor).isEmpty()) {
+            return null;
+        }
+        return valor;
     }
 
     private static boolean vazio(Object valor) {
-        return valor == null || (valor instanceof String s && s.isBlank());
+        if (valor == null) {
+            return true;
+        }
+        if (valor instanceof String && ((String) valor).isBlank()) {
+            return true;
+        }
+        return false;
     }
 
     private static String q(String identificador) {

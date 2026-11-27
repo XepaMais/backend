@@ -39,7 +39,7 @@ final class PlanilhaCsv {
 
     private static String campo(String valor) {
         String texto = valor == null ? "" : valor;
-        // Evita que o Excel execute textos digitados pelo usuário como fórmula (=, +, -, @).
+        // Evita que o Excel execute textos digitados pelo usuário como fórmula
         if (!texto.isEmpty() && "=+-@\t\r".indexOf(texto.charAt(0)) >= 0 && !ehNumero(texto)) {
             texto = "'" + texto;
         }

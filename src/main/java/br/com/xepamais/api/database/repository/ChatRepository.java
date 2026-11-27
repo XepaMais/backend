@@ -18,7 +18,7 @@ public interface ChatRepository extends JpaRepository<Chat, Integer> {
 
     List<Chat> findByPedido_IdIn(Collection<Integer> idsPedido);
 
-    // Dúvida sobre a xepa ainda aberta (reaproveitada em vez de abrir outra).
+    // Dúvida sobre a xepa ainda aberta
     @Query("""
             select c from Chat c where c.consumidor.id = :idConsumidor and c.xepa.id = :idXepa
               and c.pedido is null and c.status = 'RECENTE'""")

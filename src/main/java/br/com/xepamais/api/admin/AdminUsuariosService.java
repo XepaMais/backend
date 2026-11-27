@@ -5,10 +5,7 @@ import org.springframework.stereotype.Service;
 
 import java.util.List;
 
-// Lista as contas cadastradas com o tipo de cada uma:
-//   COMPARTILHADO = é feirante e consumidor ao mesmo tempo
-//   FEIRANTE / CONSUMIDOR = só um dos dois
-//   SEM_TIPO = conta sem nenhum dos dois perfis
+// Lista as contas cadastradas com o tipo de cada uma
 @Service
 public class AdminUsuariosService {
     private final JdbcTemplate jdbc;
@@ -50,6 +47,12 @@ public class AdminUsuariosService {
     }
 
     private static long contar(List<Usuario> usuarios, String tipo) {
-        return usuarios.stream().filter(u -> u.tipo().equals(tipo)).count();
+        long total = 0;
+        for (Usuario u : usuarios) {
+            if (u.tipo().equals(tipo)) {
+                total++;
+            }
+        }
+        return total;
     }
 }

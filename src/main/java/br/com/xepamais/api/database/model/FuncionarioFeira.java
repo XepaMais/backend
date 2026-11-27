@@ -4,8 +4,7 @@ import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
 
-// Quem atende na barraca do feirante em uma feira (aparece no perfil do feirante para o consumidor).
-// No banco, (id_feirante, id_feira) tem FK para tb_feirante_feira: a feira precisa estar ligada ao feirante.
+// Quem atende na barraca do feirante em uma feira
 @Entity
 @Table(name = "tb_funcionario_feira")
 @Getter

@@ -6,7 +6,7 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
-// Conversas entre consumidor e feirante. {papel} = consumidor ou feirante; {idConta} = id do login.
+// Conversas entre consumidor e feirante. {papel} = consumidor ou feirante
 @RestController
 @io.swagger.v3.oas.annotations.tags.Tag(name = "Conversas", description = "Chat entre consumidor e feirante")
 @RequestMapping("/api/{papel:consumidor|feirante}/{idConta}/conversas")

@@ -18,7 +18,7 @@ import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-// Fotos das xepas e dos perfis, guardadas no banco (valem em qualquer aparelho).
+// Fotos das xepas e dos perfis, guardadas no banco
 
 @RestController
 @io.swagger.v3.oas.annotations.tags.Tag(name = "Imagens", description = "Envio e leitura de fotos")
@@ -46,7 +46,10 @@ public class ImagemController {
     @Transactional
     public ImagemSalva enviar(@RequestAttribute(ContaInterceptor.ATRIBUTO_CONTA) Integer idConta,
                               @RequestBody EnvioImagem envio) {
-        Matcher partes = envio == null || envio.dataUrl() == null ? null : DATA_URL.matcher(envio.dataUrl().trim());
+        Matcher partes = null;
+        if (envio != null && envio.dataUrl() != null) {
+            partes = DATA_URL.matcher(envio.dataUrl().trim());
+        }
         if (partes == null || !partes.matches() || !TIPOS.contains(partes.group(1))) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Envie uma imagem JPG, PNG ou WEBP.");
         }
@@ -68,19 +71,21 @@ public class ImagemController {
         return new ImagemSalva(imagem.getId(), PREFIXO_URL + imagem.getId());
     }
 
-    // Pública (as fotos aparecem para todos). Nunca muda: o navegador pode guardar por 1 ano.
+    // Pública
     @GetMapping("/{id}")
     @Transactional(readOnly = true)
     public ResponseEntity<byte[]> ver(@PathVariable Integer id) {
-        Imagem imagem = imagemRepository.findById(id)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Imagem não encontrada."));
+        Imagem imagem = imagemRepository.findById(id).orElse(null);
+        if (imagem == null) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Imagem não encontrada.");
+        }
         return ResponseEntity.ok()
                 .contentType(MediaType.parseMediaType(imagem.getTipoConteudo()))
                 .cacheControl(CacheControl.maxAge(Duration.ofDays(365)).cachePublic().immutable())
                 .body(imagem.getDados());
     }
 
-    // Aceita só endereços de foto: os da própria API ou http(s).
+    // Aceita só endereços de foto: os da própria API ou http
     public static String enderecoValido(String endereco) {
         if (endereco == null) return null;
         String limpo = endereco.trim();

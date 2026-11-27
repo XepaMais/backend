@@ -6,7 +6,9 @@ import br.com.xepamais.api.consumidor.ConsumidorService;
 import br.com.xepamais.api.consumidor.PedidoService;
 import br.com.xepamais.api.database.model.Conta;
 import br.com.xepamais.api.database.model.Consumidor;
+import br.com.xepamais.api.database.model.DispositivoSessao;
 import br.com.xepamais.api.database.model.Feirante;
+import br.com.xepamais.api.database.model.Xepa;
 import br.com.xepamais.api.database.repository.ConsumidorRepository;
 import br.com.xepamais.api.database.repository.ContaRepository;
 import br.com.xepamais.api.database.repository.DispositivoSessaoRepository;
@@ -22,13 +24,13 @@ import org.springframework.web.server.ResponseStatusException;
 import java.security.SecureRandom;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
+import java.util.ArrayList;
 import java.util.Base64;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.function.Supplier;
 
-// Direitos do titular dos dados (LGPD, art. 18): acesso/portabilidade, consentimento e eliminação.
+// Direitos do titular dos dados (LGPD): ver os dados, consentimento e excluir a conta
 @Service
 public class PrivacidadeService {
     private static final ZoneId FUSO = ZoneId.of("America/Sao_Paulo");
@@ -71,7 +73,7 @@ public class PrivacidadeService {
         this.xepinhaService = xepinhaService;
     }
 
-    // Tudo o que o Xepa+ guarda sobre a pessoa, num JSON só (o front baixa como arquivo).
+    // Tudo o que o Xepa+ guarda sobre a pessoa, num JSON só
     @Transactional(readOnly = true)
     public Map<String, Object> exportar(Integer idConta) {
         Conta conta = conta(idConta);
@@ -84,7 +86,13 @@ public class PrivacidadeService {
 
         Map<String, Object> perfil = new LinkedHashMap<>();
         perfil.put("id", conta.getId());
-        perfil.put("tipo", feirante != null ? "FEIRANTE" : consumidor ? "CONSUMIDOR" : "CONTA");
+        if (feirante != null) {
+            perfil.put("tipo", "FEIRANTE");
+        } else if (consumidor) {
+            perfil.put("tipo", "CONSUMIDOR");
+        } else {
+            perfil.put("tipo", "CONTA");
+        }
         perfil.put("nome", conta.getNome());
         perfil.put("email", conta.getEmail());
         perfil.put("cpf", conta.getCpf());
@@ -104,25 +112,72 @@ public class PrivacidadeService {
             negocio.put("validadeMatricula", feirante.getValidadeMatricula());
             negocio.put("titular", feirante.getTitular());
             negocio.put("grupoComercio", feirante.getGrupoComercio());
-            negocio.put("plano", feirante.getPlano() == null ? null : feirante.getPlano().getCodigo());
+            if (feirante.getPlano() == null) {
+                negocio.put("plano", null);
+            } else {
+                negocio.put("plano", feirante.getPlano().getCodigo());
+            }
             dados.put("feirante", negocio);
-            dados.put("vendas", seguro(() -> pedidoService.vendasDoFeirante(idConta)));
-            dados.put("conversas", seguro(() -> conversaService.listar("feirante", idConta)));
-            dados.put("conversasXepinha", seguro(() -> xepinhaService.conversas(idConta)));
-            dados.put("rendas", seguro(() -> financeiroService.listarRendas(idConta, null, null)));
-            dados.put("despesas", seguro(() -> financeiroService.listarDespesas(idConta, null, null)));
-            dados.put("saques", seguro(() -> financeiroService.listarSaques(idConta)));
+
+            // Se uma parte der erro, coloca uma lista vazia e continua
+            try {
+                dados.put("vendas", pedidoService.vendasDoFeirante(idConta));
+            } catch (ResponseStatusException e) {
+                dados.put("vendas", new ArrayList<>());
+            }
+            try {
+                dados.put("conversas", conversaService.listar("feirante", idConta));
+            } catch (ResponseStatusException e) {
+                dados.put("conversas", new ArrayList<>());
+            }
+            try {
+                dados.put("conversasXepinha", xepinhaService.conversas(idConta));
+            } catch (ResponseStatusException e) {
+                dados.put("conversasXepinha", new ArrayList<>());
+            }
+            try {
+                dados.put("rendas", financeiroService.listarRendas(idConta, null, null));
+            } catch (ResponseStatusException e) {
+                dados.put("rendas", new ArrayList<>());
+            }
+            try {
+                dados.put("despesas", financeiroService.listarDespesas(idConta, null, null));
+            } catch (ResponseStatusException e) {
+                dados.put("despesas", new ArrayList<>());
+            }
+            try {
+                dados.put("saques", financeiroService.listarSaques(idConta));
+            } catch (ResponseStatusException e) {
+                dados.put("saques", new ArrayList<>());
+            }
         }
         if (consumidor) {
-            dados.put("recebimento", seguro(() -> consumidorService.recebimento(idConta)));
-            dados.put("pedidos", seguro(() -> pedidoService.listar(idConta)));
-            dados.put("conversas", seguro(() -> conversaService.listar("consumidor", idConta)));
+            try {
+                dados.put("recebimento", consumidorService.recebimento(idConta));
+            } catch (ResponseStatusException e) {
+                dados.put("recebimento", new ArrayList<>());
+            }
+            try {
+                dados.put("pedidos", pedidoService.listar(idConta));
+            } catch (ResponseStatusException e) {
+                dados.put("pedidos", new ArrayList<>());
+            }
+            try {
+                dados.put("conversas", conversaService.listar("consumidor", idConta));
+            } catch (ResponseStatusException e) {
+                dados.put("conversas", new ArrayList<>());
+            }
         }
-        dados.put("dispositivos", sessaoRepository.ativas(idConta, LocalDateTime.now(FUSO)).stream()
-                .map(s -> Map.of("aparelho", String.valueOf(s.getNomeAparelho()),
-                        "navegador", String.valueOf(s.getNavegador()),
-                        "conectadoEm", String.valueOf(s.getDataCriacao())))
-                .toList());
+
+        List<Map<String, String>> dispositivos = new ArrayList<>();
+        for (DispositivoSessao s : sessaoRepository.ativas(idConta, LocalDateTime.now(FUSO))) {
+            Map<String, String> aparelho = new LinkedHashMap<>();
+            aparelho.put("aparelho", String.valueOf(s.getNomeAparelho()));
+            aparelho.put("navegador", String.valueOf(s.getNavegador()));
+            aparelho.put("conectadoEm", String.valueOf(s.getDataCriacao()));
+            dispositivos.add(aparelho);
+        }
+        dados.put("dispositivos", dispositivos);
         return dados;
     }
 
@@ -131,7 +186,7 @@ public class PrivacidadeService {
         return consentimento(conta(idConta));
     }
 
-    // A pessoa pode dar ou retirar o consentimento de marketing quando quiser (art. 8º, § 5º).
+    // A pessoa pode aceitar ou recusar o marketing quando quiser
     @Transactional
     public ConsentimentoResponse alterarConsentimento(Integer idConta, ConsentimentoRequest request) {
         if (request == null || request.aceiteMarketing() == null) {
@@ -142,32 +197,39 @@ public class PrivacidadeService {
         return consentimento(conta);
     }
 
-    // Exclusão da conta: os dados pessoais são anonimizados e todos os logins são encerrados.
-    // Pedidos, pagamentos e lançamentos financeiros continuam guardados (sem identificar a pessoa)
-    // porque a lei fiscal obriga a manter esses registros (LGPD, art. 16, I).
+    // Exclusão da conta: apaga os dados pessoais e desconecta todos os aparelhos
     @Transactional
     public void excluir(Integer idConta, ExclusaoRequest request) {
         Conta conta = conta(idConta);
         if (request == null || request.senha() == null || !passwordHasher.matches(request.senha(), conta.getSenha())) {
-            // 403 (e não 401): no front, 401 significa "sessão expirada" e desloga a pessoa.
+            // 403 porque no front o 401 desloga a pessoa
             throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Senha incorreta.");
         }
 
         String sufixo = String.format("%010d", conta.getId());
         conta.setNome("Usuário removido");
         conta.setEmail("removido-" + conta.getId() + "@xepamais.invalid");
-        conta.setCpf("X" + sufixo); // CPF é obrigatório e único no banco: marcador que nunca é um CPF real
+        // O CPF é obrigatório no banco, então coloca um valor que nunca é um CPF de verdade
+        conta.setCpf("X" + sufixo);
         conta.setTelefone(null);
         conta.setDataNascimento(null);
         conta.setFoto(null);
-        conta.setSenha(passwordHasher.hash(senhaAleatoria())); // ninguém mais consegue entrar
+        // Senha aleatória para ninguém mais conseguir entrar
+        conta.setSenha(passwordHasher.hash(senhaAleatoria()));
         conta.setAceiteMarketing(false);
         conta.setAtivo(false);
         conta.setDataExclusao(LocalDateTime.now(FUSO));
 
-        consumidorRepository.findByConta_Id(idConta).ifPresent(this::anonimizarConsumidor);
-        feiranteRepository.findByConta_Id(idConta).ifPresent(this::anonimizarFeirante);
-        sessaoRepository.revogarOutras(idConta, -1); // -1 não é id de sessão: encerra todas
+        Consumidor consumidor = consumidorRepository.findByConta_Id(idConta).orElse(null);
+        if (consumidor != null) {
+            anonimizarConsumidor(consumidor);
+        }
+        Feirante feirante = feiranteRepository.findByConta_Id(idConta).orElse(null);
+        if (feirante != null) {
+            anonimizarFeirante(feirante);
+        }
+        // -1 não é id de nenhuma sessão, então encerra todas
+        sessaoRepository.revogarOutras(idConta, -1);
     }
 
     private void anonimizarConsumidor(Consumidor consumidor) {
@@ -187,8 +249,10 @@ public class PrivacidadeService {
         feirante.setMatricula(null);
         feirante.setValidadeMatricula(null);
         feirante.setTitular(null);
-        // As ofertas do feirante saem do catálogo.
-        xepaRepository.doFeirante(feirante.getConta().getId()).forEach(x -> x.setStatus("CANCELADA"));
+        // As xepas do feirante saem da vitrine
+        for (Xepa x : xepaRepository.doFeirante(feirante.getConta().getId())) {
+            x.setStatus("CANCELADA");
+        }
     }
 
     private ConsentimentoResponse consentimento(Conta conta) {
@@ -196,22 +260,16 @@ public class PrivacidadeService {
     }
 
     private Conta conta(Integer idConta) {
-        return contaRepository.findById(idConta).filter(Conta::isAtivo)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Conta não encontrada."));
+        Conta conta = contaRepository.findById(idConta).orElse(null);
+        if (conta == null || !conta.isAtivo()) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Conta não encontrada.");
+        }
+        return conta;
     }
 
     private String senhaAleatoria() {
         byte[] bytes = new byte[32];
         random.nextBytes(bytes);
         return Base64.getEncoder().encodeToString(bytes);
-    }
-
-    // Uma parte que falhar (ex.: feirante sem plano com Xepinha) não impede o resto da exportação.
-    private static Object seguro(Supplier<?> parte) {
-        try {
-            return parte.get();
-        } catch (ResponseStatusException ex) {
-            return List.of();
-        }
     }
 }

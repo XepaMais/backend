@@ -7,7 +7,7 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 
-// Lucro do feirante. Vendas pelo app (id_pedido preenchido) já vêm sem a comissão do Xepa+.
+// Lucro do feirante
 @Entity
 @Table(name = "tb_renda")
 @Getter

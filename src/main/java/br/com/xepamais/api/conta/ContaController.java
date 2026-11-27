@@ -15,11 +15,9 @@ import org.springframework.web.server.ResponseStatusException;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.Locale;
-import java.util.function.Consumer;
 import java.util.regex.Pattern;
 
-// Perfil da conta logada (consumidor ou feirante): tudo fica no banco, vale em qualquer aparelho.
-// {idConta} é o "id" do login; a rota exige o token da mesma conta (ContaInterceptor).
+// Perfil da conta logada
 @RestController
 @io.swagger.v3.oas.annotations.tags.Tag(name = "Conta", description = "Perfil e troca de senha")
 @RequestMapping("/api/conta/{idConta}")
@@ -39,13 +37,13 @@ public class ContaController {
         this.passwordHasher = passwordHasher;
     }
 
-    // Campos do feirante vêm nulos para consumidor. barraca = nome fantasia; grupo = grupo de comércio.
+    // Campos do feirante vêm nulos para consumidor. barraca = nome fantasia
     public record PerfilResponse(Integer id, String tipo, String nome, String email, String cpf, String telefone,
                                  LocalDate nascimento, String foto, LocalDateTime dataCadastro,
                                  String barraca, String cnpj, String ccm, String matricula, String validade,
                                  String titular, String grupo) {}
 
-    // Campo nulo = fica como está. Texto vazio = apaga (onde o banco permite). foto: "" remove a foto.
+    // Campo nulo = fica como está
     public record PerfilRequest(String nome, String email, String cpf, String telefone, LocalDate nascimento,
                                 String foto, String barraca, String cnpj, String ccm, String matricula,
                                 String validade, String titular, String grupo) {}
@@ -73,7 +71,7 @@ public class ContaController {
         if (request.email() != null) {
             String email = request.email().trim().toLowerCase(Locale.ROOT);
             if (!EMAIL.matcher(email).matches() || email.length() > 100) throw invalido("Informe um email válido.");
-            // Conta da demonstração: o email é o que liga a conta ao botão "Visite nosso Demo".
+            // Conta da demonstração: o email é o que liga a conta ao botão "Visite nosso Demo"
             if (!email.equalsIgnoreCase(conta.getEmail()) && br.com.xepamais.api.auth.ContaDemo.ehDemo(conta.getEmail())) {
                 throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Na demonstração o email não pode ser trocado.");
             }
@@ -92,11 +90,16 @@ public class ContaController {
         }
         if (request.foto() != null) {
             String foto = ImagemController.enderecoValido(request.foto());
-            if (foto == null && !request.foto().isBlank()) throw invalido("Envie a foto antes em /api/imagens.");
+            if (foto == null && !request.foto().isBlank()) {
+                throw invalido("Envie a foto antes em /api/imagens.");
+            }
             conta.setFoto(foto);
         }
 
-        feiranteRepository.findByConta_Id(idConta).ifPresent(feirante -> atualizarFeirante(feirante, request));
+        Feirante feirante = feiranteRepository.findByConta_Id(idConta).orElse(null);
+        if (feirante != null) {
+            atualizarFeirante(feirante, request);
+        }
         return resposta(conta);
     }
 
@@ -111,7 +114,9 @@ public class ContaController {
         if (!passwordHasher.matches(request.senhaAtual(), conta.getSenha())) {
             throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "A senha atual está incorreta.");
         }
-        if (request.novaSenha().length() < 8) throw invalido("A nova senha deve ter pelo menos 8 caracteres.");
+        if (request.novaSenha().length() < 8) {
+            throw invalido("A nova senha deve ter pelo menos 8 caracteres.");
+        }
         conta.setSenha(passwordHasher.hash(request.novaSenha()));
     }
 
@@ -124,7 +129,9 @@ public class ContaController {
             if (cnpj.isEmpty()) {
                 feirante.setCnpj(null);
             } else {
-                if (cnpj.length() != 14) throw invalido("O CNPJ deve conter 14 dígitos.");
+                if (cnpj.length() != 14) {
+                    throw invalido("O CNPJ deve conter 14 dígitos.");
+                }
                 if (!cnpj.equals(feirante.getCnpj()) && feiranteRepository.existsByCnpj(cnpj)) {
                     throw new ResponseStatusException(HttpStatus.CONFLICT, "Este CNPJ já está cadastrado.");
                 }
@@ -139,46 +146,78 @@ public class ContaController {
             }
             feirante.setMatricula(matricula);
         }
-        aplicar(request.ccm(), 20, feirante::setCcm);
-        aplicar(request.validade(), 20, feirante::setValidadeMatricula);
-        aplicar(request.titular(), 100, feirante::setTitular);
-        aplicar(request.grupo(), 60, feirante::setGrupoComercio);
+        if (request.ccm() != null) {
+            feirante.setCcm(opcional(request.ccm(), 20));
+        }
+        if (request.validade() != null) {
+            feirante.setValidadeMatricula(opcional(request.validade(), 20));
+        }
+        if (request.titular() != null) {
+            feirante.setTitular(opcional(request.titular(), 100));
+        }
+        if (request.grupo() != null) {
+            feirante.setGrupoComercio(opcional(request.grupo(), 60));
+        }
     }
 
     private PerfilResponse resposta(Conta conta) {
         Feirante feirante = feiranteRepository.findByConta_Id(conta.getId()).orElse(null);
-        String tipo = feirante != null ? "FEIRANTE"
-                : consumidorRepository.existsByConta_Id(conta.getId()) ? "CONSUMIDOR" : "CONTA";
+        String tipo;
+        if (feirante != null) {
+            tipo = "FEIRANTE";
+        } else if (consumidorRepository.existsByConta_Id(conta.getId())) {
+            tipo = "CONSUMIDOR";
+        } else {
+            tipo = "CONTA";
+        }
+
+        // Campos do feirante ficam nulos para quem não é feirante
+        String barraca = null;
+        String cnpj = null;
+        String ccm = null;
+        String matricula = null;
+        String validade = null;
+        String titular = null;
+        String grupo = null;
+        if (feirante != null) {
+            barraca = feirante.getNomeFantasia();
+            cnpj = feirante.getCnpj();
+            ccm = feirante.getCcm();
+            matricula = feirante.getMatricula();
+            validade = feirante.getValidadeMatricula();
+            titular = feirante.getTitular();
+            grupo = feirante.getGrupoComercio();
+        }
         return new PerfilResponse(conta.getId(), tipo, conta.getNome(), conta.getEmail(), conta.getCpf(),
                 conta.getTelefone(), conta.getDataNascimento(), conta.getFoto(), conta.getDataCadastro(),
-                feirante == null ? null : feirante.getNomeFantasia(),
-                feirante == null ? null : feirante.getCnpj(),
-                feirante == null ? null : feirante.getCcm(),
-                feirante == null ? null : feirante.getMatricula(),
-                feirante == null ? null : feirante.getValidadeMatricula(),
-                feirante == null ? null : feirante.getTitular(),
-                feirante == null ? null : feirante.getGrupoComercio());
+                barraca, cnpj, ccm, matricula, validade, titular, grupo);
     }
 
     private Conta conta(Integer idConta) {
-        return contaRepository.findById(idConta).filter(Conta::isAtivo)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Conta não encontrada."));
-    }
-
-    private static void aplicar(String valor, int maximo, Consumer<String> definir) {
-        if (valor != null) definir.accept(opcional(valor, maximo));
+        Conta conta = contaRepository.findById(idConta).orElse(null);
+        if (conta == null || !conta.isAtivo()) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Conta não encontrada.");
+        }
+        return conta;
     }
 
     private static String obrigatorio(String valor, String mensagem, int maximo) {
         String limpo = opcional(valor, maximo);
-        if (limpo == null) throw invalido(mensagem);
+        if (limpo == null) {
+            throw invalido(mensagem);
+        }
         return limpo;
     }
 
     private static String opcional(String valor, int maximo) {
         String limpo = valor.trim();
-        if (limpo.length() > maximo) throw invalido("Texto muito longo (máximo " + maximo + " caracteres).");
-        return limpo.isEmpty() ? null : limpo;
+        if (limpo.length() > maximo) {
+            throw invalido("Texto muito longo (máximo " + maximo + " caracteres).");
+        }
+        if (limpo.isEmpty()) {
+            return null;
+        }
+        return limpo;
     }
 
     private static ResponseStatusException invalido(String mensagem) {

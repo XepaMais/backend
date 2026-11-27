@@ -14,7 +14,7 @@ import java.time.LocalDate;
 import java.util.List;
 import java.util.Map;
 
-// Financeiro do feirante: lucros (rendas), despesas, saques via Pix, resumo e planilha.
+// Financeiro do feirante: lucros, despesas, saques via Pix, resumo e planilha
 
 @RestController
 @io.swagger.v3.oas.annotations.tags.Tag(name = "Financeiro", description = "Lucros, despesas, saques, resumo e planilha do feirante")
@@ -31,7 +31,7 @@ public class FinanceiroController {
         return Map.of("origensRenda", service.origensRenda(), "categoriasDespesa", service.categoriasDespesa());
     }
 
-    //  Rendas 
+    // Rendas
 
     @GetMapping("/{idConta}/rendas")
     public List<RendaResponse> listarRendas(@PathVariable Integer idConta,
@@ -58,7 +58,7 @@ public class FinanceiroController {
         service.excluirRenda(idConta, id);
     }
 
-    //  Despesas 
+    // Despesas
 
     @GetMapping("/{idConta}/despesas")
     public List<DespesaResponse> listarDespesas(@PathVariable Integer idConta,
@@ -85,7 +85,7 @@ public class FinanceiroController {
         service.excluirDespesa(idConta, id);
     }
 
-    //  Saques 
+    // Saques
 
     @GetMapping("/{idConta}/saldo")
     public SaldoResponse saldo(@PathVariable Integer idConta) {
@@ -103,7 +103,7 @@ public class FinanceiroController {
         return service.sacar(idConta, request);
     }
 
-    //  Resumo e planilha 
+    // Resumo e planilha
 
     @GetMapping("/{idConta}/resumo")
     public ResumoResponse resumo(@PathVariable Integer idConta) {
@@ -120,7 +120,7 @@ public class FinanceiroController {
         return service.historico(idConta, inicio, fim, tipo, categoria, busca);
     }
 
-    // Mesmos filtros do histórico, em CSV que abre direto no Excel / Google Planilhas.
+    // Mesmos filtros do histórico, em CSV que abre direto no Excel / Google Planilhas
     @GetMapping("/{idConta}/planilha")
     public ResponseEntity<byte[]> planilha(@PathVariable Integer idConta,
                                            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate inicio,

@@ -17,7 +17,7 @@ public class XepaController {
         this.service = service;
     }
 
-    // Xepas à venda: com estoque e não vencidas. Filtros opcionais: ?categoria=Frutas&idFeira=1&busca=tomate
+    // Xepas à venda: com estoque e não vencidas
     @GetMapping("/xepas")
     public List<XepaResponse> disponiveis(@RequestParam(required = false) String categoria,
                                           @RequestParam(required = false) Integer idFeira,
@@ -46,14 +46,14 @@ public class XepaController {
         return service.publicar(idConta, request);
     }
 
-    // Corrige a xepa: só os campos enviados mudam. Ex.: { "preco": 8.50, "quantidade": 3 }
+    // Corrige a xepa: só os campos enviados mudam
     @PutMapping("/feirante/{idConta}/xepas/{id}")
     public XepaResponse editar(@PathVariable Integer idConta, @PathVariable Integer id,
                                @RequestBody XepaRequest request) {
         return service.editar(idConta, id, request);
     }
 
-    // Exclui a xepa (sai da vitrine; pedidos antigos continuam mostrando o que foi comprado).
+    // Exclui a xepa
     @DeleteMapping("/feirante/{idConta}/xepas/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void cancelar(@PathVariable Integer idConta, @PathVariable Integer id) {

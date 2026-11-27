@@ -7,7 +7,7 @@ import org.hibernate.annotations.ColumnDefault;
 
 import java.time.LocalDateTime;
 
-// Foto enviada por uma conta (xepa ou perfil). Servida em GET /api/imagens/{id}.
+// Foto enviada por uma conta
 @Entity
 @Table(name = "tb_imagem")
 @Getter

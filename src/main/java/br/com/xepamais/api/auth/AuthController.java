@@ -42,7 +42,7 @@ public class AuthController {
         return authService.login(request, userAgent);
     }
 
-    // { "perfil": "consumidor" | "gratis" | "crescer" | "pro" }: entra numa conta da demonstração.
+    // Entra numa conta da demonstração
     public record DemoRequest(String perfil) {}
 
     @PostMapping("/demo")

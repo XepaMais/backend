@@ -12,11 +12,7 @@ import java.time.Instant;
 import java.util.Base64;
 import java.util.Optional;
 
-// Token das contas (consumidor e feirante): "conta|idConta|idSessao|expiraEm" assinado com HMAC-SHA256.
-// A assinatura prova que o token veio da API; a sessão (tb_dispositivo_sessao) diz se ele ainda vale
-// (ver SessaoService). O front manda em "Authorization: Bearer <token>".
-// Em produção defina AUTH_TOKEN_SECRET (/etc/xepamais/api.env): sem ele a chave é sorteada ao
-// iniciar e reiniciar a API desloga todo mundo.
+// Token das contas: "conta|idConta|idSessao|expiraEm" assinado com HMAC-SHA256
 @Component
 public class ContaTokenService {
     private static final Base64.Encoder B64 = Base64.getUrlEncoder().withoutPadding();
@@ -41,8 +37,7 @@ public class ContaTokenService {
         return conteudo + "." + B64.encodeToString(assinar(conteudo));
     }
 
-    // Conta e sessão do token, se a assinatura confere e ele não venceu.
-    // Tokens antigos (sem sessão) não valem mais: a pessoa entra de novo.
+    // Conta e sessão do token, se a assinatura confere e ele não venceu
     public Optional<DadosToken> ler(String token) {
         if (token == null) return Optional.empty();
         int ponto = token.indexOf('.');

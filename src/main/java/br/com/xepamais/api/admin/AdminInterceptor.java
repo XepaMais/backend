@@ -7,7 +7,7 @@ import org.springframework.web.servlet.HandlerInterceptor;
 import org.springframework.web.servlet.config.annotation.InterceptorRegistry;
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 
-// Bloqueia /api/admin/** (menos o login) para quem não manda um token válido.
+// Bloqueia /api/admin/** para quem não manda um token válido
 @Configuration
 public class AdminInterceptor implements HandlerInterceptor, WebMvcConfigurer {
     private final AdminTokenService tokens;

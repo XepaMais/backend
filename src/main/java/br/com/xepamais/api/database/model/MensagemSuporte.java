@@ -7,8 +7,7 @@ import org.hibernate.annotations.ColumnDefault;
 
 import java.time.LocalDateTime;
 
-// Mensagem enviada pela página "Suporte". A equipe vê no painel admin (tabela tb_mensagem_suporte)
-// e responde pelo e-mail informado. Tabela criada pela AtualizacaoBanco.
+// Mensagem enviada pela página "Suporte"
 @Entity
 @Table(name = "tb_mensagem_suporte")
 @Getter
@@ -20,7 +19,7 @@ public class MensagemSuporte {
     @Column(name = "id_mensagem_suporte")
     private Integer id;
 
-    // Conta de quem enviou, se estava logado.
+    // Conta de quem enviou, se estava logado
     @ManyToOne
     @JoinColumn(name = "id_conta")
     private Conta conta;
@@ -41,7 +40,7 @@ public class MensagemSuporte {
     @Column(name = "mensagem", nullable = false, columnDefinition = "TEXT")
     private String mensagem;
 
-    // ABERTA ou RESPONDIDA (a equipe muda pelo painel admin).
+    // ABERTA ou RESPONDIDA
     @Column(name = "status_suporte", nullable = false, length = 12)
     private String status = "ABERTA";
 

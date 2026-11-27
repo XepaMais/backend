@@ -7,7 +7,7 @@ import org.hibernate.annotations.ColumnDefault;
 
 import java.time.LocalDateTime;
 
-// Mensagem da conversa com a Xepinha. papel: USUARIO (feirante) ou IA.
+// Mensagem da conversa com a Xepinha. papel: USUARIO ou IA
 @Entity
 @Table(name = "tb_mensagem_ia")
 @Getter
@@ -23,7 +23,7 @@ public class MensagemIa {
     @JoinColumn(name = "id_conta", nullable = false)
     private Conta conta;
 
-    // Coluna criada pela AtualizacaoBanco (mensagens antigas ficam sem conversa).
+    // Coluna criada pela AtualizacaoBanco
     @ManyToOne
     @JoinColumn(name = "id_conversa_ia")
     private ConversaIa conversa;

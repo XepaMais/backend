@@ -14,7 +14,7 @@ import java.util.Optional;
 
 public interface XepaRepository extends JpaRepository<Xepa, Integer> {
 
-    // Vitrine do consumidor: só o que ainda tem estoque e não venceu.
+    // Vitrine do consumidor: só o que ainda tem estoque e não venceu
     @Query("""
             select x from Xepa x join fetch x.produto p join fetch p.feirante fe join fetch fe.conta
             join fetch p.categoria join fetch x.feira
@@ -23,7 +23,7 @@ public interface XepaRepository extends JpaRepository<Xepa, Integer> {
             order by x.dataCadastro desc, x.id desc""")
     List<Xepa> disponiveis(@Param("hoje") LocalDate hoje);
 
-    // Xepas publicadas pelo feirante da conta (todas as situações).
+    // Xepas publicadas pelo feirante da conta
     @Query("""
             select x from Xepa x join fetch x.produto p join fetch p.categoria join fetch x.feira
             where p.feirante.conta.id = :idConta and x.status <> 'CANCELADA'
@@ -33,7 +33,7 @@ public interface XepaRepository extends JpaRepository<Xepa, Integer> {
     @Query("select x from Xepa x where x.id = :id and x.produto.feirante.conta.id = :idConta")
     Optional<Xepa> doFeirante(@Param("idConta") Integer idConta, @Param("id") Integer id);
 
-    // Trava as xepas durante o checkout para não vender o mesmo estoque duas vezes.
+    // Trava as xepas durante o checkout para não vender o mesmo estoque duas vezes
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("select x from Xepa x where x.id in :ids")
     List<Xepa> travar(@Param("ids") Collection<Integer> ids);

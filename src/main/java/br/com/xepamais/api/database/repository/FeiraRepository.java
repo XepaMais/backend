@@ -10,7 +10,7 @@ import java.util.Optional;
 
 public interface FeiraRepository extends JpaRepository<Feira, Integer> {
 
-    // Feiras ligadas ao feirante da conta (tb_feirante_feira).
+    // Feiras ligadas ao feirante da conta
     @Query("select f from Feirante fe join fe.feiras f where fe.conta.id = :idConta order by f.nome")
     List<Feira> doFeirante(@Param("idConta") Integer idConta);
 

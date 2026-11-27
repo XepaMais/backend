@@ -114,34 +114,44 @@ public class AuthService {
         }
         String email = request.email().trim();
         limiteTentativas.conferir(email);
-        Conta conta = contaRepository.findByEmailIgnoreCase(email)
-                .filter(Conta::isAtivo)
-                .filter(c -> passwordHasher.matches(request.senha(), c.getSenha()))
-                .orElse(null);
-        if (conta == null) {
+        Conta conta = contaRepository.findByEmailIgnoreCase(email).orElse(null);
+        boolean senhaCerta = conta != null && conta.isAtivo() && passwordHasher.matches(request.senha(), conta.getSenha());
+        if (!senhaCerta) {
             limiteTentativas.registrarFalha(email);
             throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Email ou senha inválidos.");
         }
         limiteTentativas.limpar(email);
 
-        String tipo = feiranteRepository.existsByConta_Id(conta.getId())
-                ? "FEIRANTE"
-                : consumidorRepository.existsByConta_Id(conta.getId()) ? "CONSUMIDOR" : "CONTA";
+        String tipo;
+        if (feiranteRepository.existsByConta_Id(conta.getId())) {
+            tipo = "FEIRANTE";
+        } else if (consumidorRepository.existsByConta_Id(conta.getId())) {
+            tipo = "CONSUMIDOR";
+        } else {
+            tipo = "CONTA";
+        }
         return response(conta, tipo, userAgent);
     }
 
-    // Demonstração: abre uma sessão numa das contas fictícias, sem senha.
-    // Só as contas de ContaDemo.CONTAS: nenhuma conta real pode ser aberta por aqui.
+    // Demonstração: entra numa das contas de exemplo, sem senha
     @Transactional
     public ContaResponse entrarNaDemo(String perfil, String userAgent) {
-        String email = perfil == null ? null : ContaDemo.CONTAS.get(perfil.trim().toLowerCase(Locale.ROOT));
+        String email = null;
+        if (perfil != null) {
+            email = ContaDemo.CONTAS.get(perfil.trim().toLowerCase(Locale.ROOT));
+        }
         if (email == null) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Perfil de demonstração inválido.");
         }
-        Conta conta = contaRepository.findByEmailIgnoreCase(email).filter(Conta::isAtivo)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE,
-                        "A demonstração está sendo atualizada. Tente de novo em alguns minutos."));
-        String tipo = feiranteRepository.existsByConta_Id(conta.getId()) ? "FEIRANTE" : "CONSUMIDOR";
+        Conta conta = contaRepository.findByEmailIgnoreCase(email).orElse(null);
+        if (conta == null || !conta.isAtivo()) {
+            throw new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE,
+                    "A demonstração está sendo atualizada. Tente de novo em alguns minutos.");
+        }
+        String tipo = "CONSUMIDOR";
+        if (feiranteRepository.existsByConta_Id(conta.getId())) {
+            tipo = "FEIRANTE";
+        }
         return response(conta, tipo, userAgent);
     }
 
@@ -185,7 +195,7 @@ public class AuthService {
         }
     }
 
-    // LGPD: sem o aceite dos Termos e da Política de Privacidade a conta não é criada.
+    // LGPD: sem o aceite dos Termos e da Política de Privacidade a conta não é criada
     private static void exigirAceite(Boolean aceiteTermos) {
         if (!Boolean.TRUE.equals(aceiteTermos)) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
@@ -203,12 +213,15 @@ public class AuthService {
         return value == null || value.isBlank();
     }
 
-    // Cada login abre uma sessão (um aparelho em "Dispositivos conectados").
-    // Feirante: o login já leva o plano escolhido (em outro aparelho o app não pede o plano de novo).
+    // Cada login abre uma sessão
     private ContaResponse response(Conta conta, String tipo, String userAgent) {
-        String plano = "FEIRANTE".equals(tipo)
-                ? feiranteRepository.findByConta_Id(conta.getId()).map(PlanoService::codigoDo).orElse(null)
-                : null;
+        String plano = null;
+        if ("FEIRANTE".equals(tipo)) {
+            Feirante feirante = feiranteRepository.findByConta_Id(conta.getId()).orElse(null);
+            if (feirante != null) {
+                plano = PlanoService.codigoDo(feirante);
+            }
+        }
         return new ContaResponse(conta.getId(), conta.getNome(), conta.getEmail(), tipo,
                 sessaoService.abrir(conta.getId(), userAgent), plano);
     }

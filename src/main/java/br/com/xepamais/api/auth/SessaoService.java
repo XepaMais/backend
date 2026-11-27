@@ -15,19 +15,20 @@ import java.security.SecureRandom;
 import java.time.Duration;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
+import java.util.ArrayList;
 import java.util.HexFormat;
 import java.util.List;
 import java.util.Optional;
 
-// Sessões de login (dispositivos conectados). Cada login cria uma; encerrar a sessão desconecta o aparelho.
+// Sessões de login
 @Service
 public class SessaoService {
     private static final ZoneId FUSO = ZoneId.of("America/Sao_Paulo");
     private static final Duration VALIDADE = Duration.ofDays(30);
-    // Evita gravar no banco a cada requisição: o "último acesso" é atualizado no máximo a cada 5 min.
+    // Evita gravar no banco a cada requisição
     private static final Duration INTERVALO_ULTIMO_ACESSO = Duration.ofMinutes(5);
 
-    // atual = é o aparelho que está fazendo a consulta.
+    // atual = é o aparelho que está fazendo a consulta
     public record DispositivoResponse(Integer id, String nome, String navegador, String tipo,
                                       LocalDateTime conectadoEm, LocalDateTime ultimoAcesso, boolean atual) {}
 
@@ -43,7 +44,7 @@ public class SessaoService {
         this.tokens = tokens;
     }
 
-    // Login: registra o aparelho (pelo navegador que fez o login) e devolve o token da sessão.
+    // Login: registra o aparelho e devolve o token da sessão
     @Transactional
     public String abrir(Integer idConta, String userAgent) {
         Conta conta = contaRepository.getReferenceById(idConta);
@@ -63,7 +64,7 @@ public class SessaoService {
         return tokens.gerar(idConta, sessao.getId(), sessao.getExpiraEm().atZone(FUSO).toInstant());
     }
 
-    // Usado em toda requisição de rota da conta: token assinado + sessão ainda ativa.
+    // Usado em toda requisição de rota da conta: token assinado + sessão ainda ativa
     @Transactional
     public Optional<DadosToken> validar(String token) {
         Optional<DadosToken> dados = tokens.ler(token);
@@ -82,18 +83,26 @@ public class SessaoService {
 
     @Transactional(readOnly = true)
     public List<DispositivoResponse> listar(Integer idConta, Integer idSessaoAtual) {
-        return repository.ativas(idConta, agora()).stream()
-                .map(s -> new DispositivoResponse(s.getId(), s.getNomeAparelho(), s.getNavegador(),
-                        s.getTipoAparelho() == null ? "computador" : s.getTipoAparelho(),
-                        s.getDataCriacao(), s.getUltimoAcesso(), s.getId().equals(idSessaoAtual)))
-                .toList();
+        List<DispositivoResponse> lista = new ArrayList<>();
+        for (DispositivoSessao s : repository.ativas(idConta, agora())) {
+            String tipo = s.getTipoAparelho();
+            if (tipo == null) {
+                tipo = "computador";
+            }
+            boolean atual = s.getId().equals(idSessaoAtual);
+            lista.add(new DispositivoResponse(s.getId(), s.getNomeAparelho(), s.getNavegador(), tipo,
+                    s.getDataCriacao(), s.getUltimoAcesso(), atual));
+        }
+        return lista;
     }
 
-    // Desconecta um aparelho (o próprio aparelho também: é o mesmo que sair).
+    // Desconecta um aparelho
     @Transactional
     public void encerrar(Integer idConta, Integer idSessao) {
-        DispositivoSessao sessao = repository.findByIdAndConta_Id(idSessao, idConta)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Dispositivo não encontrado."));
+        DispositivoSessao sessao = repository.findByIdAndConta_Id(idSessao, idConta).orElse(null);
+        if (sessao == null) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Dispositivo não encontrado.");
+        }
         sessao.setRevogado(true);
     }
 
@@ -116,25 +125,49 @@ public class SessaoService {
         return LocalDateTime.now(FUSO);
     }
 
-    // Lê do cabeçalho User-Agent o sistema, o navegador e o tipo do aparelho (mesma lógica da tela).
+    // Lê do cabeçalho User-Agent o sistema, o navegador e o tipo do aparelho
     record Aparelho(String sistema, String navegador, String tipo) {
         static Aparelho de(String agente) {
-            String ua = agente == null ? "" : agente;
+            String ua = "";
+            if (agente != null) {
+                ua = agente;
+            }
             String sistema = "Sistema não identificado";
             String tipo = "computador";
-            if (ua.contains("iPad")) { sistema = "iPad"; tipo = "tablet"; }
-            else if (ua.contains("iPhone")) { sistema = "iPhone"; tipo = "celular"; }
-            else if (ua.contains("Android")) { sistema = "Android"; tipo = ua.contains("Mobile") ? "celular" : "tablet"; }
-            else if (ua.contains("Windows")) sistema = "Windows";
-            else if (ua.contains("Mac OS")) sistema = "macOS";
-            else if (ua.contains("Linux")) sistema = "Linux";
+            if (ua.contains("iPad")) {
+                sistema = "iPad";
+                tipo = "tablet";
+            } else if (ua.contains("iPhone")) {
+                sistema = "iPhone";
+                tipo = "celular";
+            } else if (ua.contains("Android")) {
+                sistema = "Android";
+                if (ua.contains("Mobile")) {
+                    tipo = "celular";
+                } else {
+                    tipo = "tablet";
+                }
+            } else if (ua.contains("Windows")) {
+                sistema = "Windows";
+            } else if (ua.contains("Mac OS")) {
+                sistema = "macOS";
+            } else if (ua.contains("Linux")) {
+                sistema = "Linux";
+            }
 
+            // A ordem importa: o Edge e o Opera também têm "Chrome/" no texto
             String navegador = "Navegador não identificado";
-            if (ua.contains("Edg/")) navegador = "Microsoft Edge";
-            else if (ua.contains("OPR/")) navegador = "Opera";
-            else if (ua.contains("Firefox/")) navegador = "Firefox";
-            else if (ua.contains("Chrome/")) navegador = "Google Chrome";
-            else if (ua.contains("Safari/")) navegador = "Safari";
+            if (ua.contains("Edg/")) {
+                navegador = "Microsoft Edge";
+            } else if (ua.contains("OPR/")) {
+                navegador = "Opera";
+            } else if (ua.contains("Firefox/")) {
+                navegador = "Firefox";
+            } else if (ua.contains("Chrome/")) {
+                navegador = "Google Chrome";
+            } else if (ua.contains("Safari/")) {
+                navegador = "Safari";
+            }
             return new Aparelho(sistema, navegador, tipo);
         }
     }

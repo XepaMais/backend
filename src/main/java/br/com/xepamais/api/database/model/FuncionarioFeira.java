@@ -5,7 +5,7 @@ import lombok.Getter;
 import lombok.Setter;
 
 // Quem atende na barraca do feirante em uma feira (aparece no perfil do feirante para o consumidor).
-// Tabela criada pela AtualizacaoBanco.
+// No banco, (id_feirante, id_feira) tem FK para tb_feirante_feira: a feira precisa estar ligada ao feirante.
 @Entity
 @Table(name = "tb_funcionario_feira")
 @Getter
@@ -25,6 +25,6 @@ public class FuncionarioFeira {
     @JoinColumn(name = "id_feira", nullable = false)
     private Feira feira;
 
-    @Column(name = "nome_funcionario", nullable = false, length = 80)
+    @Column(name = "nome_funcionario", nullable = false, length = 100)
     private String nome;
 }

@@ -40,6 +40,7 @@ class SuporteFuncionarioTest {
     @Autowired ContaRepository contaRepository;
     @Autowired FeiranteRepository feiranteRepository;
     @Autowired MensagemSuporteRepository suporteRepository;
+    @Autowired org.springframework.jdbc.core.JdbcTemplate jdbc;
 
     MockMvc mvc;
     Integer contaFeirante;
@@ -47,6 +48,9 @@ class SuporteFuncionarioTest {
     @BeforeEach
     void preparar() {
         mvc = TokenDaRota.mockMvc(contexto, tokens);
+        // Mesma regra do banco de produção (xepaDB): funcionário só existe para um vínculo feirante–feira.
+        jdbc.execute("ALTER TABLE tb_funcionario_feira ADD CONSTRAINT IF NOT EXISTS fk_funcionario_feirante_feira "
+                + "FOREIGN KEY (id_feirante, id_feira) REFERENCES tb_feirante_feira(id_feirante, id_feira)");
         Conta conta = new Conta();
         conta.setNome("Fabiane");
         conta.setEmail(UUID.randomUUID() + "@teste.com");

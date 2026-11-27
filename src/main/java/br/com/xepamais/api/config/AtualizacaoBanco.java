@@ -85,16 +85,16 @@ public class AtualizacaoBanco implements ApplicationRunner {
                     CONSTRAINT fk_suporte_conta FOREIGN KEY (id_conta) REFERENCES tb_conta(id_conta) ON DELETE SET NULL
                 )""");
 
-        // Funcionários de cada barraca em cada feira.
+        // Funcionários de cada barraca em cada feira (igual ao esquema do time: o funcionário
+        // pertence ao vínculo feirante–feira de tb_feirante_feira).
         executar("tabela tb_funcionario_feira", """
                 CREATE TABLE IF NOT EXISTS tb_funcionario_feira (
                     id_funcionario   INT AUTO_INCREMENT PRIMARY KEY,
-                    id_feirante      INT         NOT NULL,
-                    id_feira         INT         NOT NULL,
-                    nome_funcionario VARCHAR(80) NOT NULL,
-                    INDEX idx_funcionario_feirante (id_feirante),
-                    CONSTRAINT fk_funcionario_feirante FOREIGN KEY (id_feirante) REFERENCES tb_feirante(id_feirante) ON DELETE CASCADE,
-                    CONSTRAINT fk_funcionario_feira    FOREIGN KEY (id_feira)    REFERENCES tb_feira(id_feira) ON DELETE CASCADE
+                    id_feirante      INT          NOT NULL,
+                    id_feira         INT          NOT NULL,
+                    nome_funcionario VARCHAR(100) NOT NULL,
+                    CONSTRAINT fk_funcionario_feirante_feira FOREIGN KEY (id_feirante, id_feira)
+                        REFERENCES tb_feirante_feira(id_feirante, id_feira) ON DELETE CASCADE
                 )""");
 
         // Receitas da Cozinha: código (liga à foto do front), categoria e dificuldade.

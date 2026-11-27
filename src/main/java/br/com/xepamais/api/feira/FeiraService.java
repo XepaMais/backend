@@ -103,6 +103,9 @@ public class FeiraService {
 
         if (feirante.getFeiras() == null) feirante.setFeiras(new HashSet<>());
         feirante.getFeiras().add(feira);
+        // Grava já o vínculo feirante–feira (tb_feirante_feira): no banco, tb_funcionario_feira tem
+        // FK para esse vínculo, e o Hibernate deixaria a tabela de ligação para o fim da transação.
+        feiranteRepository.saveAndFlush(feirante);
         return response(feira, salvarFuncionarios(feirante, feira, request.funcionarios()));
     }
 

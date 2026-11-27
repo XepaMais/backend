@@ -13,6 +13,7 @@ import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
+@io.swagger.v3.oas.annotations.tags.Tag(name = "Autenticação", description = "Cadastro de consumidor e feirante e login (devolve o token)")
 @RequestMapping("/api/auth")
 public class AuthController {
     private final AuthService authService;

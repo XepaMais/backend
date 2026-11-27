@@ -15,6 +15,7 @@ import java.util.stream.Collectors;
 
 // Receitas da Cozinha (públicas). Novas receitas podem ser cadastradas pelo painel admin (tabelas do banco).
 @RestController
+@io.swagger.v3.oas.annotations.tags.Tag(name = "Receitas", description = "Receitas para aproveitar a xepa")
 @RequestMapping("/api/receitas")
 public class ReceitaController {
     private final ReceitaCulinariaRepository receitaRepository;

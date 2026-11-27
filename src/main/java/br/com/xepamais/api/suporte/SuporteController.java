@@ -21,6 +21,7 @@ import java.util.regex.Pattern;
 
 // Formulário da página "Suporte" (público). A mensagem fica salva no banco e aparece no painel admin.
 @RestController
+@io.swagger.v3.oas.annotations.tags.Tag(name = "Suporte", description = "Mensagens de suporte")
 @RequestMapping("/api/suporte")
 public class SuporteController {
     private static final ZoneId FUSO = ZoneId.of("America/Sao_Paulo");

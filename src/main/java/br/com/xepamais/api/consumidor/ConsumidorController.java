@@ -9,6 +9,7 @@ import java.util.List;
 // Área do consumidor: carrinho, pedidos e impacto.
 // {idConta} é o "id" devolvido pelo login (conta do tipo CONSUMIDOR).
 @RestController
+@io.swagger.v3.oas.annotations.tags.Tag(name = "Consumidor", description = "Carrinho, endereço, pedidos e impacto do consumidor")
 @RequestMapping("/api/consumidor/{idConta}")
 public class ConsumidorController {
     private final ConsumidorService consumidorService;

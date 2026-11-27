@@ -129,6 +129,11 @@ public class AtualizacaoBanco implements ApplicationRunner {
         // Perfil.
         coluna("tb_conta", "foto_conta", "VARCHAR(255) NULL");
         coluna("tb_conta", "data_nascimento", "DATE NULL");
+        // LGPD: registro do consentimento e da exclusão da conta.
+        coluna("tb_conta", "aceite_termos_em", "DATETIME NULL");
+        coluna("tb_conta", "versao_termos", "VARCHAR(10) NULL");
+        coluna("tb_conta", "aceite_marketing", "BOOLEAN NOT NULL DEFAULT FALSE");
+        coluna("tb_conta", "data_exclusao", "DATETIME NULL");
         coluna("tb_feirante", "validade_matricula", "VARCHAR(20) NULL");
         // O script base do time cria a validade como DATE, mas o front envia texto livre
         // (ex.: "31/03/2027"): com DATE, salvar o perfil do feirante dá "Incorrect date value".

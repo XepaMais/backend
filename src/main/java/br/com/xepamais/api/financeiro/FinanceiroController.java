@@ -17,6 +17,7 @@ import java.util.Map;
 // Financeiro do feirante: lucros (rendas), despesas, saques via Pix, resumo e planilha.
 // {idConta} é o "id" devolvido pelo login.
 @RestController
+@io.swagger.v3.oas.annotations.tags.Tag(name = "Financeiro", description = "Lucros, despesas, saques, resumo e planilha do feirante")
 @RequestMapping("/api/financeiro")
 public class FinanceiroController {
     private final FinanceiroService service;

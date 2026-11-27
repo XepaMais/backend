@@ -8,6 +8,7 @@ import java.util.List;
 
 // O outro lado dos pedidos do consumidor: o feirante vê as vendas e confirma a retirada.
 @RestController
+@io.swagger.v3.oas.annotations.tags.Tag(name = "Vendas do feirante", description = "Pedidos recebidos, cancelamento e confirmação de retirada")
 @RequestMapping("/api/feirante/{idConta}/pedidos")
 public class VendasFeiranteController {
     private final PedidoService pedidoService;

@@ -1,5 +1,6 @@
 package br.com.xepamais.api.auth.dto;
 
+// aceiteTermos: obrigatório (LGPD). aceiteMarketing: opcional, receber novidades por e-mail.
 public record CadastroFeiranteRequest(
         String nome,
         String cpf,
@@ -10,5 +11,7 @@ public record CadastroFeiranteRequest(
         String cnpj,
         String ccm,
         String matricula,
-        String grupoComercio
+        String grupoComercio,
+        Boolean aceiteTermos,
+        Boolean aceiteMarketing
 ) {}

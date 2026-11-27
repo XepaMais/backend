@@ -14,7 +14,7 @@ spring:
   jpa:
     hibernate:
       ddl-auto: none
-    show-sql: ${SHOW_SQL:true}
+    show-sql: ${SHOW_SQL:false}
 
 app:
   auth:
@@ -31,8 +31,23 @@ app:
     allowed-origins: ${APP_CORS_ALLOWED_ORIGINS:https://www.xepamais.com.br,https://xepamais.com.br,https://xepa-mais.vercel.app,http://localhost:5173}
   admin:
     # Login do painel /admin. A senha fica só como hash PBKDF2 (igual às contas).
-    # Para trocar em produção, defina ADMIN_EMAIL / ADMIN_SENHA_HASH em /etc/xepamais/api.env.
-    email: ${ADMIN_EMAIL:xepamais8@gmail.com}
-    senha-hash: ${ADMIN_SENHA_HASH:pbkdf2$210000$6moDCGh5jbio52aeFaW5OQ==$Z0xQZFIMM7LlK0n7B/ye8DrjlZuDiPEXdYfQiQ3ZD64=}
+    # Sem valor padrão de propósito: defina ADMIN_EMAIL e ADMIN_SENHA_HASH em /etc/xepamais/api.env
+    # (ou nas variáveis de ambiente locais). Vazios = painel admin desligado.
+    email: ${ADMIN_EMAIL:}
+    senha-hash: ${ADMIN_SENHA_HASH:}
     # Chave que assina o token do admin. Vazia = sorteada a cada início da API.
     token-secret: ${ADMIN_TOKEN_SECRET:}
+  lgpd:
+    # Versão dos Termos de Uso / Política de Privacidade gravada no aceite de cada conta.
+    # Ao mudar os termos, aumente a versão (e a data mostrada nas páginas do site).
+    versao-termos: ${LGPD_VERSAO_TERMOS:1.0}
+
+# Documentação da API: https://xepamais.com.br/api/docs (fica em /api para passar pelo proxy da Vercel).
+springdoc:
+  api-docs:
+    path: /api/docs/openapi
+  swagger-ui:
+    path: /api/docs
+    operations-sorter: method
+    tags-sorter: alpha
+  default-produces-media-type: application/json

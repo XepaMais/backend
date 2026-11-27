@@ -48,6 +48,20 @@ public class Conta{
     @Column(name = "data_cadastro", insertable = false, updatable = false)
     private LocalDateTime dataCadastro;
 
+    // LGPD: quando e em qual versão a pessoa aceitou os Termos de Uso e a Política de Privacidade.
+    @Column(name = "aceite_termos_em")
+    private LocalDateTime aceiteTermosEm;
+
+    @Column(name = "versao_termos", length = 10)
+    private String versaoTermos;
+
+    // Consentimento opcional para receber novidades por e-mail (pode ser revogado no perfil).
+    @Column(name = "aceite_marketing", nullable = false)
+    private boolean aceiteMarketing = false;
+
+    // Data em que a conta foi excluída a pedido do titular (dados pessoais anonimizados).
+    @Column(name = "data_exclusao")
+    private LocalDateTime dataExclusao;
 
 
 

@@ -128,7 +128,7 @@ class XepinhaTest {
         mvc.perform(post(base() + "/mensagens").contentType(MediaType.APPLICATION_JSON)
                         .content("{\"texto\":\"Oi\"}"))
                 .andExpect(status().isServiceUnavailable())
-                .andExpect(status().reason(XepinhaService.MSG_SOBRECARGA));
+                .andExpect(jsonPath("$.message").value(XepinhaService.MSG_SOBRECARGA));
         mvc.perform(get(base() + "/conversas")).andExpect(jsonPath("$", hasSize(0)));
     }
 

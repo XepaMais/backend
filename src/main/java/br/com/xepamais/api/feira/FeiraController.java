@@ -12,6 +12,7 @@ import java.util.List;
 // Feiras: o mapa do consumidor lê todas; o feirante cadastra as dele.
 // {idConta} é o "id" devolvido pelo login.
 @RestController
+@io.swagger.v3.oas.annotations.tags.Tag(name = "Feiras", description = "Mapa de feiras e feiras do feirante")
 @RequestMapping("/api/feiras")
 public class FeiraController {
     private final FeiraService service;

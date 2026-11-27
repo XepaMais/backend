@@ -36,6 +36,11 @@ public class XepinhaService {
     // Modo demonstração (sem login): no máximo 15 perguntas a cada 10 minutos por IP.
     private static final int DEMO_LIMITE = 15;
     private static final long DEMO_JANELA_MS = 10 * 60 * 1000L;
+    // Teto geral do demo (somando todos os IPs): o IP vem de cabeçalho e pode ser forjado,
+    // então este limite protege a cota da API do Gemini mesmo assim.
+    private static final int DEMO_LIMITE_GLOBAL = 300;
+    private static final long DEMO_JANELA_GLOBAL_MS = 60 * 60 * 1000L;
+    private final Deque<Long> perguntasDemoGlobal = new ArrayDeque<>();
 
     public static final String MSG_INDISPONIVEL = "Ops! Tive um problema ao processar sua resposta. Tente novamente em instantes.";
     public static final String MSG_SOBRECARGA = "Estou com muitas conversas agora. Tente de novo em alguns segundos.";
@@ -184,6 +189,16 @@ public class XepinhaService {
 
     private void limitarDemo(String ip) {
         long agora = System.currentTimeMillis();
+        synchronized (perguntasDemoGlobal) {
+            while (!perguntasDemoGlobal.isEmpty() && agora - perguntasDemoGlobal.peekFirst() > DEMO_JANELA_GLOBAL_MS) {
+                perguntasDemoGlobal.pollFirst();
+            }
+            if (perguntasDemoGlobal.size() >= DEMO_LIMITE_GLOBAL) {
+                throw new ResponseStatusException(HttpStatus.TOO_MANY_REQUESTS,
+                        "A demonstração da Xepinha está muito procurada agora. Tente de novo mais tarde ou entre com sua conta.");
+            }
+            perguntasDemoGlobal.addLast(agora);
+        }
         Deque<Long> fila = perguntasDemo.computeIfAbsent(ip == null ? "?" : ip, k -> new ArrayDeque<>());
         synchronized (fila) {
             while (!fila.isEmpty() && agora - fila.peekFirst() > DEMO_JANELA_MS) fila.pollFirst();

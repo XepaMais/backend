@@ -25,4 +25,4 @@ if ($LASTEXITCODE -ne 0) { throw 'Falha no envio (scp)' }
 Write-Host '>> Instalando e reiniciando o serviço'
 ssh @opcoesSsh "ubuntu@$Servidor" 'sudo mv /tmp/api.jar /opt/xepamais/api.jar && sudo chown xepamais:xepamais /opt/xepamais/api.jar && sudo systemctl restart xepamais-api && sleep 25 && sudo systemctl --no-pager status xepamais-api | head -5'
 
-Write-Host ">> Teste: http://${Servidor}:8080/api/auth/login (deve responder, mesmo que com erro 4xx)"
+Write-Host ">> Teste: https://api.xepamais.com.br/api/planos (com HTTPS configurado pelo setup-https.sh; antes dele: http://${Servidor}:8080/api/planos)"

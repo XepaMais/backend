@@ -22,6 +22,7 @@ import java.util.regex.Pattern;
 // Envio: POST /api/imagens {"dataUrl":"data:image/jpeg;base64,..."} (precisa estar logado).
 // Uso: o "url" devolvido (/api/imagens/{id}) vai na xepa ("imagem") ou no perfil ("foto").
 @RestController
+@io.swagger.v3.oas.annotations.tags.Tag(name = "Imagens", description = "Envio e leitura de fotos")
 @RequestMapping("/api/imagens")
 public class ImagemController {
     public static final String PREFIXO_URL = "/api/imagens/";

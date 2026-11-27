@@ -10,6 +10,7 @@ import java.util.List;
 // Vitrine de xepas (consumidor) e publicação de xepas (feirante).
 // {idConta} é o "id" devolvido pelo login.
 @RestController
+@io.swagger.v3.oas.annotations.tags.Tag(name = "Xepas", description = "Catálogo de ofertas e xepas do feirante")
 @RequestMapping("/api")
 public class XepaController {
     private final XepaService service;

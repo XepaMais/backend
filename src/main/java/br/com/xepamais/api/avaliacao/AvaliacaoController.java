@@ -6,6 +6,7 @@ import br.com.xepamais.api.consumidor.dto.ConsumidorDtos.PedidoResponse;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
+@io.swagger.v3.oas.annotations.tags.Tag(name = "Avaliações", description = "Avaliação de pedidos e perfil público do feirante")
 @RequestMapping("/api")
 public class AvaliacaoController {
     private final AvaliacaoService service;

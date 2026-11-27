@@ -192,7 +192,7 @@ class ConsumidorControllerTest {
         mvc.perform(post("/api/consumidor/" + contaConsumidor + "/pedidos").contentType(MediaType.APPLICATION_JSON)
                         .content("{\"itens\":[{\"idXepa\":" + xepa + ",\"quantidade\":3}]}"))
                 .andExpect(status().isConflict())
-                .andExpect(status().reason(containsString("Só restam 1")));
+                .andExpect(jsonPath("$.message", containsString("Só restam 1")));
     }
 
     @Test

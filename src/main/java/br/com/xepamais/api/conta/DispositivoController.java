@@ -11,6 +11,7 @@ import java.util.Map;
 
 // Dispositivos conectados e sair. {idConta} = id do login (a rota exige o token da mesma conta).
 @RestController
+@io.swagger.v3.oas.annotations.tags.Tag(name = "Dispositivos", description = "Aparelhos conectados e sair")
 @RequestMapping("/api/conta/{idConta}")
 public class DispositivoController {
     private final SessaoService sessoes;

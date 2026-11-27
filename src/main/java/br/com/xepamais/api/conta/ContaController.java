@@ -21,6 +21,7 @@ import java.util.regex.Pattern;
 // Perfil da conta logada (consumidor ou feirante): tudo fica no banco, vale em qualquer aparelho.
 // {idConta} é o "id" do login; a rota exige o token da mesma conta (ContaInterceptor).
 @RestController
+@io.swagger.v3.oas.annotations.tags.Tag(name = "Conta", description = "Perfil e troca de senha")
 @RequestMapping("/api/conta/{idConta}")
 public class ContaController {
     private static final Pattern EMAIL = Pattern.compile("^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$");

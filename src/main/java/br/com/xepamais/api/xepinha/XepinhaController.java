@@ -8,6 +8,7 @@ import java.util.List;
 
 // Xepinha: assistente com IA dos feirantes (planos Broto e Colheita).
 @RestController
+@io.swagger.v3.oas.annotations.tags.Tag(name = "Xepinha (IA)", description = "Assistente com IA dos feirantes")
 @RequestMapping("/api")
 public class XepinhaController {
     private final XepinhaService service;

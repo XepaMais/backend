@@ -11,11 +11,14 @@ import br.com.xepamais.api.database.repository.ContaRepository;
 import br.com.xepamais.api.database.repository.ConsumidorRepository;
 import br.com.xepamais.api.database.repository.FeiranteRepository;
 import br.com.xepamais.api.plano.PlanoService;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
+import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.util.Locale;
 
 @Service
@@ -25,15 +28,21 @@ public class AuthService {
     private final FeiranteRepository feiranteRepository;
     private final PasswordHasher passwordHasher;
     private final SessaoService sessaoService;
+    private final LimiteTentativas limiteTentativas;
+    private final String versaoTermos;
 
     public AuthService(ContaRepository contaRepository, ConsumidorRepository consumidorRepository,
                        FeiranteRepository feiranteRepository,
-                       PasswordHasher passwordHasher, SessaoService sessaoService) {
+                       PasswordHasher passwordHasher, SessaoService sessaoService,
+                       LimiteTentativas limiteTentativas,
+                       @Value("${app.lgpd.versao-termos:1.0}") String versaoTermos) {
         this.contaRepository = contaRepository;
         this.consumidorRepository = consumidorRepository;
         this.feiranteRepository = feiranteRepository;
         this.passwordHasher = passwordHasher;
         this.sessaoService = sessaoService;
+        this.limiteTentativas = limiteTentativas;
+        this.versaoTermos = versaoTermos;
     }
 
     @Transactional
@@ -52,6 +61,7 @@ public class AuthService {
         conta.setSenha(passwordHasher.hash(request.senha()));
         conta.setTelefone(request.telefone().trim());
         conta.setAtivo(true);
+        registrarConsentimento(conta, request.aceiteMarketing());
         contaRepository.save(conta);
 
         Consumidor consumidor = new Consumidor();
@@ -83,6 +93,7 @@ public class AuthService {
         conta.setSenha(passwordHasher.hash(request.senha()));
         conta.setTelefone(request.telefone().trim());
         conta.setAtivo(true);
+        registrarConsentimento(conta, request.aceiteMarketing());
         contaRepository.save(conta);
 
         Feirante feirante = new Feirante();
@@ -101,10 +112,17 @@ public class AuthService {
         if (request == null || vazio(request.email()) || vazio(request.senha())) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Informe email e senha.");
         }
-        Conta conta = contaRepository.findByEmailIgnoreCase(request.email().trim())
+        String email = request.email().trim();
+        limiteTentativas.conferir(email);
+        Conta conta = contaRepository.findByEmailIgnoreCase(email)
                 .filter(Conta::isAtivo)
                 .filter(c -> passwordHasher.matches(request.senha(), c.getSenha()))
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Email ou senha inválidos."));
+                .orElse(null);
+        if (conta == null) {
+            limiteTentativas.registrarFalha(email);
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Email ou senha inválidos.");
+        }
+        limiteTentativas.limpar(email);
 
         String tipo = feiranteRepository.existsByConta_Id(conta.getId())
                 ? "FEIRANTE"
@@ -119,6 +137,7 @@ public class AuthService {
                 || vazio(request.grupoComercio())) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Preencha todos os campos obrigatórios.");
         }
+        exigirAceite(request.aceiteTermos());
         String cpf = request.cpf().replaceAll("\\D", "");
         if (cpf.length() != 11) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "O CPF deve conter 11 dígitos.");
@@ -141,6 +160,7 @@ public class AuthService {
                 || vazio(request.senha()) || vazio(request.telefone())) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Preencha todos os campos obrigatórios.");
         }
+        exigirAceite(request.aceiteTermos());
         String cpf = request.cpf().replaceAll("\\D", "");
         if (cpf.length() != 11) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "O CPF deve conter 11 dígitos.");
@@ -148,6 +168,20 @@ public class AuthService {
         if (request.senha().length() < 8) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "A senha deve ter pelo menos 8 caracteres.");
         }
+    }
+
+    // LGPD: sem o aceite dos Termos e da Política de Privacidade a conta não é criada.
+    private static void exigirAceite(Boolean aceiteTermos) {
+        if (!Boolean.TRUE.equals(aceiteTermos)) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                    "Para criar a conta, aceite os Termos de Uso e a Política de Privacidade.");
+        }
+    }
+
+    private void registrarConsentimento(Conta conta, Boolean aceiteMarketing) {
+        conta.setAceiteTermosEm(LocalDateTime.now(ZoneId.of("America/Sao_Paulo")));
+        conta.setVersaoTermos(versaoTermos);
+        conta.setAceiteMarketing(Boolean.TRUE.equals(aceiteMarketing));
     }
 
     private boolean vazio(String value) {

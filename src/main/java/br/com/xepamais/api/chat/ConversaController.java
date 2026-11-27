@@ -8,6 +8,7 @@ import java.util.List;
 
 // Conversas entre consumidor e feirante. {papel} = consumidor ou feirante; {idConta} = id do login.
 @RestController
+@io.swagger.v3.oas.annotations.tags.Tag(name = "Conversas", description = "Chat entre consumidor e feirante")
 @RequestMapping("/api/{papel:consumidor|feirante}/{idConta}/conversas")
 public class ConversaController {
     private final ConversaService service;

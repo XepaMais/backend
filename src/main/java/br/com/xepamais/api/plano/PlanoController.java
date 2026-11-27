@@ -8,6 +8,7 @@ import org.springframework.web.bind.annotation.*;
 import java.util.List;
 
 @RestController
+@io.swagger.v3.oas.annotations.tags.Tag(name = "Planos", description = "Planos Semente, Broto e Colheita")
 @RequestMapping("/api")
 public class PlanoController {
     private final PlanoService service;
